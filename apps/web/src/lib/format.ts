@@ -42,9 +42,11 @@ export function formatDateTimeBR(iso: string | null | undefined): string {
 export function ageInYears(dob: string, now: Date = new Date()): number {
   const [y, m, d] = dob.slice(0, 10).split('-').map(Number);
   if (!y || !m || !d) return 0;
-  let age = now.getFullYear() - y;
-  const beforeBirthday =
-    now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d);
+  const refY = now.getUTCFullYear();
+  const refM = now.getUTCMonth() + 1;
+  const refD = now.getUTCDate();
+  let age = refY - y;
+  const beforeBirthday = refM < m || (refM === m && refD < d);
   if (beforeBirthday) age--;
   return Math.max(0, age);
 }
