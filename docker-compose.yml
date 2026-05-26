@@ -16,7 +16,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       SEED_FILE: /app/data/seed.json
     ports:
-      - '3001:3001'
+      - '${API_HOST_PORT:-3001}:3001'
     healthcheck:
       test:
         [
@@ -46,7 +46,7 @@ services:
       PORT: 3000
       HOSTNAME: 0.0.0.0
     ports:
-      - '3000:3000'
+      - '${WEB_HOST_PORT:-3000}:3000'
     depends_on:
       api:
         condition: service_healthy
