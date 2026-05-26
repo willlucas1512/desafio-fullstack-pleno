@@ -1,13 +1,16 @@
 import { buildApp } from './app.js';
 import { loadEnv } from './config/env.js';
+import { ChildrenRepository } from './repositories/children.repository.js';
 
 async function main(): Promise<void> {
   const env = loadEnv();
-  const app = await buildApp({ env });
+  const childrenRepo = await ChildrenRepository.fromSeedFile(env.SEED_FILE);
+  const app = await buildApp({ env, childrenRepo });
 
   try {
     await app.listen({ port: env.PORT, host: env.HOST });
     app.log.info(`API listening on http://${env.HOST}:${env.PORT}`);
+    app.log.info(`Loaded ${childrenRepo.list().length} children from ${env.SEED_FILE}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

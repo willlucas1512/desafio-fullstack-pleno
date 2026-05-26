@@ -3,25 +3,31 @@ import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import type { Env } from './config/env.js';
 import { jwtPlugin } from './plugins/jwt.plugin.js';
+import type { ChildrenRepository } from './repositories/children.repository.js';
 import { createAuthRoutes } from './routes/auth.routes.js';
+import { createChildrenRoutes } from './routes/children.routes.js';
 import { createAuthService } from './services/auth.service.js';
+import { ChildrenService } from './services/children.service.js';
 
 export interface BuildAppOptions {
   env: Env;
+  childrenRepo: ChildrenRepository;
 }
 
-export async function buildApp({ env }: BuildAppOptions): Promise<FastifyInstance> {
+export async function buildApp({ env, childrenRepo }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger:
       env.NODE_ENV === 'production'
         ? { level: env.LOG_LEVEL }
-        : {
-            level: env.LOG_LEVEL,
-            transport: {
-              target: 'pino-pretty',
-              options: { translateTime: 'HH:MM:ss Z', ignore: 'pid,hostname' },
+        : env.NODE_ENV === 'test'
+          ? false
+          : {
+              level: env.LOG_LEVEL,
+              transport: {
+                target: 'pino-pretty',
+                options: { translateTime: 'HH:MM:ss Z', ignore: 'pid,hostname' },
+              },
             },
-          },
     disableRequestLogging: env.NODE_ENV === 'test',
   });
 
@@ -38,8 +44,10 @@ export async function buildApp({ env }: BuildAppOptions): Promise<FastifyInstanc
     email: env.TECHNICIAN_EMAIL,
     password: env.TECHNICIAN_PASSWORD,
   });
+  const childrenService = new ChildrenService(childrenRepo);
 
   await app.register(createAuthRoutes({ authService }));
+  await app.register(createChildrenRoutes({ childrenService }));
 
   return app;
 }
