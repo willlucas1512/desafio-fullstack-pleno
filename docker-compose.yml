@@ -1,0 +1,65 @@
+services:
+  api:
+    container_name: painel-api
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      LOG_LEVEL: info
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      TECHNICIAN_EMAIL: ${TECHNICIAN_EMAIL}
+      TECHNICIAN_PASSWORD: ${TECHNICIAN_PASSWORD}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      SEED_FILE: /app/data/seed.json
+    ports:
+      - '3001:3001'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  web:
+    container_name: painel-web
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Browser code calls the API directly, so this URL is what the
+        # *browser* uses — i.e. the host-exposed port, not the compose
+        # network name. Override in .env for production.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - '3000:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
