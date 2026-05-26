@@ -6,8 +6,10 @@ import { jwtPlugin } from './plugins/jwt.plugin.js';
 import type { ChildrenRepository } from './repositories/children.repository.js';
 import { createAuthRoutes } from './routes/auth.routes.js';
 import { createChildrenRoutes } from './routes/children.routes.js';
+import { createSummaryRoutes } from './routes/summary.routes.js';
 import { createAuthService } from './services/auth.service.js';
 import { ChildrenService } from './services/children.service.js';
+import { SummaryService } from './services/summary.service.js';
 
 export interface BuildAppOptions {
   env: Env;
@@ -45,9 +47,11 @@ export async function buildApp({ env, childrenRepo }: BuildAppOptions): Promise<
     password: env.TECHNICIAN_PASSWORD,
   });
   const childrenService = new ChildrenService(childrenRepo);
+  const summaryService = new SummaryService(childrenRepo);
 
   await app.register(createAuthRoutes({ authService }));
   await app.register(createChildrenRoutes({ childrenService }));
+  await app.register(createSummaryRoutes({ summaryService }));
 
   return app;
 }
