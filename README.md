@@ -11,10 +11,15 @@ Painel para técnicos da Prefeitura acompanharem crianças em situação de vuln
 ```bash
 git clone https://github.com/willlucas1512/desafio-fullstack-pleno.git
 cd desafio-fullstack-pleno
+
+# Configure a API (credenciais e JWT_SECRET) — veja "Credenciais de teste"
+cp apps/api/.env.example apps/api/.env
+# edite apps/api/.env: preencha TECHNICIAN_EMAIL, TECHNICIAN_PASSWORD e JWT_SECRET
+
 docker compose up
 ```
 
-Acesse **http://localhost:3000** e use as [credenciais de teste](#credenciais-de-teste).
+Acesse **http://localhost:3000** e faça login com as [credenciais de teste](#credenciais-de-teste).
 
 > Se a porta 3000 ou 3001 já estiver em uso no seu ambiente, defina `WEB_HOST_PORT=3010` ou `API_HOST_PORT=3011` antes do comando (mais detalhes em [Variáveis de ambiente](#variáveis-de-ambiente)).
 
@@ -112,6 +117,16 @@ desafio-fullstack-pleno/
 ### Opção 1 — Docker Compose (recomendado)
 
 ```bash
+# 1. Crie o arquivo de configuração da API a partir do template:
+cp apps/api/.env.example apps/api/.env
+
+# 2. Edite apps/api/.env e preencha:
+#    - TECHNICIAN_EMAIL e TECHNICIAN_PASSWORD (valores do enunciado — veja
+#      "Credenciais de teste" abaixo)
+#    - JWT_SECRET (qualquer string ≥ 16 chars; gere uma com:
+#      node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+
+# 3. Suba a stack:
 docker compose up --build
 ```
 
@@ -119,14 +134,17 @@ docker compose up --build
 - Web em http://localhost:3000
 - A API só fica disponível para o web depois que `/health` retornar 200 (via `depends_on.condition: service_healthy`).
 
+> **Por que esse passo de configuração?** Runtime config (credenciais e segredos) vive em `.env`, não no código — segue [12-factor app](https://12factor.net/config) e permite trocar valores por ambiente sem rebuild. Veja a [decisão #8](#8-configuração-de-runtime-fora-do-código).
+
 ### Opção 2 — Node nativo
 
 ```bash
 # 1. Instale tudo (npm workspaces)
 npm install
 
-# 2. Copie os arquivos de env de exemplo
+# 2. Configure a API (mesmo passo do Docker Compose)
 cp apps/api/.env.example apps/api/.env
+# edite apps/api/.env conforme acima
 
 # 3. Em dois terminais:
 npm run dev:api   # API em http://localhost:3001
@@ -139,9 +157,9 @@ Copie `.env.example` na raiz para `.env` e ajuste se necessário. As mais releva
 
 | Variável | Default | Onde é usada |
 |---|---|---|
-| `JWT_SECRET` | `` | API — assinatura HS256. **Troque em produção.** |
+| `JWT_SECRET` | _(obrigatório)_ | API — assinatura HS256. Gere com `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. |
 | `JWT_EXPIRES_IN` | `1h` | API — validade do token |
-| `TECHNICIAN_EMAIL` / `TECHNICIAN_PASSWORD` | `a@b.test` / `x` | Credenciais aceitas pela API |
+| `TECHNICIAN_EMAIL` / `TECHNICIAN_PASSWORD` | _(obrigatórios)_ | API — credenciais aceitas. Use os valores do enunciado do desafio. Lidos exclusivamente do `.env` (ver [decisão #8](#8-configuração-de-runtime-fora-do-código)). |
 | `CORS_ORIGIN` | `http://localhost:3000` | API — origem permitida (lista por vírgula) |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` | Web — URL da API (browser-side, embedada no build) |
 | `API_HOST_PORT` | `3001` | Compose — porta exposta no host |
@@ -159,7 +177,7 @@ Base URL: `http://localhost:3001`
 POST /auth/token
 Content-Type: application/json
 
-{ "email": "a@b.test", "password": "x" }
+{ "email": "<TECHNICIAN_EMAIL>", "password": "<TECHNICIAN_PASSWORD>" }
 ```
 
 → `200`
@@ -359,6 +377,14 @@ Os specs Playwright sobem API e Web automaticamente via `webServer` no `playwrig
 
 Imagem Docker final do web é ~150 MB porque inclui só o que o tracer do Next identificou como necessário. Sem essa flag, copiaríamos `.next` + `node_modules` inteiros (~600 MB).
 
+### 8. Configuração de runtime fora do código
+
+**O que:** todas as variáveis sensíveis (`TECHNICIAN_EMAIL`, `TECHNICIAN_PASSWORD`, `JWT_SECRET`) são lidas exclusivamente de variáveis de ambiente — sem defaults no schema Zod ([`env.ts`](apps/api/src/config/env.ts)), no `docker-compose.yml` ou no `render.yaml`. O `apps/api/.env.example` documenta a estrutura esperada; o operador copia para `apps/api/.env` e preenche os valores antes de subir a stack. Os testes ficam totalmente isolados, com fixtures próprios (`SAMPLE_EMAIL` / `SAMPLE_VALUE`) que não compartilham nenhum valor com configuração de deploy.
+
+**Por quê:** runtime configuration deve sair do código-fonte por princípio (12-factor app, fator III). Cada ambiente — dev/staging/prod — tem o seu próprio `.env` sem precisar de branch ou build diferentes; rotacionar uma credencial não requer commit; e testes não acoplam suas asserções a valores que podem mudar fora deles.
+
+**Trade-off:** `docker compose up` deixa de ser 100% "zero config" — exige um `cp apps/api/.env.example apps/api/.env` + preenchimento dos valores antes do primeiro start. O custo é uma etapa de setup, documentada no Quickstart; o ganho é desacoplar completamente código de configuração.
+
 ---
 
 ## Tratamento dos casos-limite do seed
@@ -407,10 +433,9 @@ Configurações prontas para um deploy "split":
 
 ## Credenciais de teste
 
-| Campo | Valor |
-|---|---|
-| E-mail | `a@b.test` |
-| Senha | `x` |
+As credenciais aceitas pela API são as **publicadas no enunciado público do desafio**, na seção *"Endpoints necessários → POST /auth/token"* do repositório [`prefeitura-rio/desafio-fullstack-pleno`](https://github.com/prefeitura-rio/desafio-fullstack-pleno#readme).
+
+Para usá-las, coloque os valores em `apps/api/.env` (variáveis `TECHNICIAN_EMAIL` e `TECHNICIAN_PASSWORD`). Veja a [decisão #8](#8-configuração-de-runtime-fora-do-código) sobre por que toda config sensível mora em `.env`.
 
 A senha é validada com **comparação constant-time** ([`auth.service.ts`](apps/api/src/services/auth.service.ts)) para evitar timing attacks.
 

@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { E2E_EMAIL, E2E_PASSWORD } from './credentials';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/login');
-  await page.getByLabel('E-mail').fill('a@b.test');
-  await page.getByLabel('Senha').fill('x');
+  await page.getByLabel('E-mail').fill(E2E_EMAIL);
+  await page.getByLabel('Senha').fill(E2E_PASSWORD);
   await page.getByRole('button', { name: /entrar/i }).click();
   await page.waitForURL(/\/dashboard/);
 });

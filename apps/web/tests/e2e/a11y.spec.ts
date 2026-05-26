@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { E2E_EMAIL, E2E_PASSWORD } from './credentials';
 
 test('login é navegável apenas com teclado', async ({ page }) => {
   await page.goto('/login');
 
   await page.keyboard.press('Tab'); // password
-  await page.keyboard.type('x');
-  await page.locator('#email').fill('a@b.test');
+  await page.keyboard.type(E2E_PASSWORD);
+  await page.locator('#email').fill(E2E_EMAIL);
   await page.keyboard.press('Tab'); // submit
   await page.keyboard.press('Enter');
 
@@ -14,8 +15,8 @@ test('login é navegável apenas com teclado', async ({ page }) => {
 
 test('header tem landmark e link âncora para conteúdo', async ({ page }) => {
   await page.goto('/login');
-  await page.getByLabel('E-mail').fill('a@b.test');
-  await page.getByLabel('Senha').fill('x');
+  await page.getByLabel('E-mail').fill(E2E_EMAIL);
+  await page.getByLabel('Senha').fill(E2E_PASSWORD);
   await page.getByRole('button', { name: /entrar/i }).click();
   await page.waitForURL(/\/dashboard/);
 

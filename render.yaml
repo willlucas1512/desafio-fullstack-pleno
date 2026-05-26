@@ -21,12 +21,15 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 1h
-      - key: TECHNICIAN_EMAIL
-        value: a@b.test
-      - key: TECHNICIAN_PASSWORD
-        value: x
       - key: SEED_FILE
         value: /app/data/seed.json
+      # Credenciais do técnico — devem ser configuradas no painel do Render
+      # antes do primeiro deploy (sync:false bloqueia o deploy até serem
+      # preenchidas). Os valores estão no enunciado público do desafio.
+      - key: TECHNICIAN_EMAIL
+        sync: false
+      - key: TECHNICIAN_PASSWORD
+        sync: false
+      # URL pública do frontend (Vercel) — definir após o deploy do front.
       - key: CORS_ORIGIN
-        # Substitua pela URL de produção do frontend (Vercel)
         sync: false

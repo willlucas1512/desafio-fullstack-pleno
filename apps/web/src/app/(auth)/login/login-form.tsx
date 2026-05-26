@@ -130,10 +130,8 @@ export function LoginForm() {
           </Button>
         </form>
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Credenciais de teste:
-          <br />
-          <code className="font-mono">a@b.test</code> /{' '}
-          <code className="font-mono">x</code>
+          Credenciais documentadas no <code className="font-mono">README.md</code> do
+          repositório e em <code className="font-mono">apps/api/.env.example</code>.
         </p>
       </CardContent>
     </Card>

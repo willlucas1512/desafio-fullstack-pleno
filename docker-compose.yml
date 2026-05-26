@@ -4,16 +4,12 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    # config do runtime (JWT_SECRET, CORS_ORIGIN, credenciais do tecnico)
+    # vive em apps/api/.env (copiado de apps/api/.env.example). Veja o README.
+    env_file:
+      - ./apps/api/.env
     environment:
       NODE_ENV: production
-      PORT: 3001
-      HOST: 0.0.0.0
-      LOG_LEVEL: info
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
-      TECHNICIAN_EMAIL: ${TECHNICIAN_EMAIL}
-      TECHNICIAN_PASSWORD: ${TECHNICIAN_PASSWORD}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       SEED_FILE: /app/data/seed.json
     ports:
       - '${API_HOST_PORT:-3001}:3001'
@@ -37,9 +33,8 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        # Browser code calls the API directly, so this URL is what the
-        # *browser* uses — i.e. the host-exposed port, not the compose
-        # network name. Override in .env for production.
+        # URL que o browser usa pra chamar a API (porta exposta no host,
+        # nao o nome de servico do compose). Em prod, sobrescreva no .env.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
     environment:
       NODE_ENV: production
