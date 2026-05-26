@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: painel-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '3001'
+      - key: HOST
+        value: 0.0.0.0
+      - key: LOG_LEVEL
+        value: info
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1h
+      - key: TECHNICIAN_EMAIL
+        value: a@b.test
+      - key: TECHNICIAN_PASSWORD
+        value: x
+      - key: SEED_FILE
+        value: /app/data/seed.json
+      - key: CORS_ORIGIN
+        # Substitua pela URL de produção do frontend (Vercel)
+        sync: false
