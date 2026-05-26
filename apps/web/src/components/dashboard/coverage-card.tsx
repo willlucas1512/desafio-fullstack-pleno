@@ -26,7 +26,7 @@ export function CoverageCard({ coverage, total }: Props) {
         <CardTitle className="text-base">Cobertura por área</CardTitle>
         <CardDescription>
           Quantas crianças têm registro em cada sistema. Lacunas indicam falhas de
-          cadastro — não significam "tudo certo".
+          cadastro — não significam &ldquo;tudo certo&rdquo;.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
