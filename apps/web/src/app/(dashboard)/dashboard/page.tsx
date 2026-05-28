@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, CheckCircle2, Users, UserX } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Users, UserX } from 'lucide-react';
 import { AlertsByAreaChart } from '@/components/dashboard/alerts-by-area-chart';
 import { CoverageCard } from '@/components/dashboard/coverage-card';
 import { NeighborhoodHeatmap } from '@/components/dashboard/neighborhood-heatmap';
@@ -17,15 +17,34 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useSummary } from '@/hooks/use-summary';
 
 export default function DashboardPage() {
-  const { data, isLoading, isError, refetch } = useSummary();
+  const { data, isLoading, isError, refetch, dataUpdatedAt } = useSummary();
+
+  const updatedAtLabel = dataUpdatedAt
+    ? new Date(dataUpdatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    : null;
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Visão geral do acompanhamento de crianças em situação de vulnerabilidade.
-        </p>
+      <header className="space-y-2">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Dashboard</h1>
+          {updatedAtLabel && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+              Atualizado às {updatedAtLabel}
+            </p>
+          )}
+        </div>
+        {isLoading || !data ? (
+          <Skeleton className="h-5 w-72" />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Você tem <strong className="font-semibold text-foreground">{data.pendentes_revisao}</strong>{' '}
+            {data.pendentes_revisao === 1 ? 'caso pendente de revisão' : 'casos pendentes de revisão'} ·{' '}
+            <strong className="font-semibold text-warning">{data.com_alertas}</strong>{' '}
+            com alertas ativos.
+          </p>
+        )}
       </header>
 
       {isError && (
@@ -49,7 +68,7 @@ export default function DashboardPage() {
         {isLoading || !data ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-24" />
+              <Skeleton key={i} className="h-28" />
             ))}
           </div>
         ) : (
@@ -67,6 +86,7 @@ export default function DashboardPage() {
               icon={AlertTriangle}
               tone="warning"
               href="/children?alertas=com"
+              description="Precisam de acompanhamento"
             />
             <StatCard
               label="Sem dados em nenhuma área"
@@ -81,8 +101,13 @@ export default function DashboardPage() {
               value={data.revisadas}
               total={data.total_criancas}
               icon={CheckCircle2}
-              tone="success"
+              tone="muted"
               href="/children?revisado=true"
+              description={
+                data.pendentes_revisao > 0
+                  ? `Faltam ${data.pendentes_revisao}`
+                  : 'Tudo revisado'
+              }
             />
           </div>
         )}
