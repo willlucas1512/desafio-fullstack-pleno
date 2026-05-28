@@ -16,7 +16,7 @@ test.describe('Mobile 375px', () => {
   test('dashboard renderiza sem overflow', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('E-mail').fill(E2E_EMAIL);
-    await page.getByLabel('Senha').fill(E2E_PASSWORD);
+    await page.getByLabel('Senha', { exact: true }).fill(E2E_PASSWORD);
     await page.getByRole('button', { name: /entrar/i }).click();
     await page.waitForURL(/\/dashboard/);
     await expect(page.getByText('Total de crianças')).toBeVisible();
@@ -31,7 +31,7 @@ test.describe('Mobile 375px', () => {
   test('lista e detalhe sem overflow horizontal', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('E-mail').fill(E2E_EMAIL);
-    await page.getByLabel('Senha').fill(E2E_PASSWORD);
+    await page.getByLabel('Senha', { exact: true }).fill(E2E_PASSWORD);
     await page.getByRole('button', { name: /entrar/i }).click();
     await page.waitForURL(/\/dashboard/);
 
