@@ -36,7 +36,7 @@ test.describe('Mobile 375px', () => {
     await page.waitForURL(/\/dashboard/);
 
     await page.goto('/children');
-    await expect(page.getByRole('heading', { name: /crianças acompanhadas/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /em acompanhamento/i })).toBeVisible();
     let dims = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,

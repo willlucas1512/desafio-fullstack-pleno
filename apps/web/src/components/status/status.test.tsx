@@ -31,10 +31,10 @@ describe('AreaStatusDot', () => {
     expect(screen.getByText(/Saúde: sem dados/)).toBeInTheDocument();
   });
 
-  it('flags area with alerts as "com alerta"', () => {
+  it('flags area with alerts as "N alerta(s)"', () => {
     const child = makeChild();
     render(<AreaStatusDot child={child} area="educacao" />);
-    expect(screen.getByText(/Educação: com alerta/)).toBeInTheDocument();
+    expect(screen.getByText(/Educação: \d+ alerta/)).toBeInTheDocument();
   });
 
   it('flags area with no alerts as "em dia"', () => {

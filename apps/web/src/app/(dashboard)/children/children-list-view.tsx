@@ -102,11 +102,30 @@ export function ChildrenListView() {
   const from = data ? (data.pagination.page - 1) * data.pagination.pageSize + 1 : 0;
   const to = data ? Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.total) : 0;
 
+  const pageStats = useMemo(() => {
+    if (!data) return null;
+    let critical = 0;
+    let withAlerts = 0;
+    for (const c of data.items) {
+      const areasWithAlerts =
+        (c.saude && c.saude.alertas.length > 0 ? 1 : 0) +
+        (c.educacao && c.educacao.alertas.length > 0 ? 1 : 0) +
+        (c.assistencia_social && c.assistencia_social.alertas.length > 0 ? 1 : 0);
+      if (areasWithAlerts === 3) critical++;
+      if (areasWithAlerts > 0) withAlerts++;
+    }
+    return { critical, withAlerts };
+  }, [data]);
+
   return (
     <div className="space-y-5">
       <header className="space-y-2">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Crianças acompanhadas</h1>
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+            {typeof total === 'number'
+              ? `${total} ${total === 1 ? 'criança' : 'crianças'} em acompanhamento`
+              : 'Crianças em acompanhamento'}
+          </h1>
           {isFetching && (
             <span
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
@@ -117,30 +136,38 @@ export function ChildrenListView() {
             </span>
           )}
         </div>
-        <p className="text-sm text-muted-foreground" aria-live="polite">
-          {typeof total === 'number' ? (
-            total === 0 ? (
-              <>Nenhuma criança encontrada com esses filtros.</>
-            ) : (
+        {data && pageStats ? (
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            Mostrando <strong className="font-semibold text-foreground">{from}</strong>
+            {'–'}
+            <strong className="font-semibold text-foreground">{to}</strong>
+            {pageStats.critical > 0 && (
               <>
-                Mostrando <strong className="font-semibold text-foreground">{from}</strong>
-                {'–'}
-                <strong className="font-semibold text-foreground">{to}</strong> de{' '}
-                <strong className="font-semibold text-foreground">{total}</strong>{' '}
-                {total === 1 ? 'criança' : 'crianças'}.
+                {' · '}
+                <strong className="font-semibold text-destructive">
+                  {pageStats.critical} {pageStats.critical === 1 ? 'crítico' : 'críticos'}
+                </strong>
               </>
-            )
-          ) : (
-            <>Carregando crianças acompanhadas…</>
-          )}
-        </p>
+            )}
+            {pageStats.withAlerts > 0 && (
+              <>
+                {' · '}
+                <strong className="font-semibold text-warning">
+                  {pageStats.withAlerts} com alertas
+                </strong>
+              </>
+            )}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
+        )}
       </header>
 
       <ChildrenFilters value={draft} onChange={handleFilterChange} />
 
       <div className="relative" aria-busy={isFetching}>
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-28 w-full" />
             ))}
@@ -159,7 +186,7 @@ export function ChildrenListView() {
             </button>
           </div>
         ) : data && data.items.length > 0 ? (
-          <ul className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             {data.items.map((c) => (
               <li key={c.id}>
                 <ChildRow child={c} />

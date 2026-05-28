@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
 test.describe('Lista de crianças', () => {
   test('mostra a lista e responde a filtros', async ({ page }) => {
     await page.goto('/children');
-    await expect(page.getByRole('heading', { name: /crianças acompanhadas/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /em acompanhamento/i })).toBeVisible();
 
     const items = page.getByRole('list').first().getByRole('listitem');
     await expect(items).toHaveCount(10);

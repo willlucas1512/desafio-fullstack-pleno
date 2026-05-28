@@ -75,13 +75,13 @@ export function initials(name: string): string {
 }
 
 const BAIRRO_COLORS: Record<string, string> = {
-  Rocinha: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-  Maré: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
-  Jacarezinho: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
-  'Complexo do Alemão': 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200',
-  Mangueira: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200',
+  Rocinha: 'bg-amber-500 text-white',
+  Maré: 'bg-sky-600 text-white',
+  Jacarezinho: 'bg-emerald-600 text-white',
+  'Complexo do Alemão': 'bg-rose-600 text-white',
+  Mangueira: 'bg-violet-600 text-white',
 };
 
 export function bairroAvatarClass(bairro: string): string {
-  return BAIRRO_COLORS[bairro] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200';
+  return BAIRRO_COLORS[bairro] ?? 'bg-slate-600 text-white';
 }
