@@ -3,13 +3,13 @@ import { E2E_EMAIL, E2E_PASSWORD } from './credentials';
 
 test('login é navegável apenas com teclado', async ({ page }) => {
   await page.goto('/login');
-
-  await page.keyboard.press('Tab'); // password
+  // email tem autoFocus
+  await page.keyboard.type(E2E_EMAIL);
+  await page.keyboard.press('Tab'); // esqueci minha senha
+  await page.keyboard.press('Tab'); // senha
   await page.keyboard.type(E2E_PASSWORD);
-  await page.locator('#email').fill(E2E_EMAIL);
-  await page.keyboard.press('Tab'); // submit
+  await page.keyboard.press('Tab'); // entrar
   await page.keyboard.press('Enter');
-
   await expect(page).toHaveURL(/\/dashboard/);
 });
 
