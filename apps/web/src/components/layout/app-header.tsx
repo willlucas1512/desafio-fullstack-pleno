@@ -1,7 +1,8 @@
 'use client';
 
-import { ChevronDown, LogOut, Menu, Monitor, Moon, ShieldCheck, Sun, UserCircle, X } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Monitor, Moon, Sun, UserCircle, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -31,15 +32,18 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="container flex h-16 items-center gap-3">
-        <Link href="/dashboard" className="flex items-center gap-2.5 font-semibold focus-ring rounded-md">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm">
-            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <span className="hidden flex-col leading-tight sm:flex">
-            <span className="text-sm font-semibold tracking-tight">Painel Social</span>
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Prefeitura do Rio
-            </span>
+        <Link href="/dashboard" className="flex items-center gap-3 focus-ring rounded-md">
+          <Image
+            src="/pcrj-logo.svg"
+            alt="Prefeitura da Cidade do Rio de Janeiro"
+            width={96}
+            height={48}
+            className="h-8 w-auto brightness-0 dark:invert"
+            priority
+          />
+          <span className="hidden h-7 w-px bg-border sm:inline-block" aria-hidden="true" />
+          <span className="hidden text-sm font-semibold tracking-tight text-foreground sm:inline">
+            Painel Social
           </span>
         </Link>
 
