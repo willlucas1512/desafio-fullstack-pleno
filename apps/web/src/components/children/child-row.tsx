@@ -2,9 +2,10 @@
 
 import { Check, ChevronRight, Loader2, User } from 'lucide-react';
 import Link from 'next/link';
+import { ChildAvatar } from '@/components/children/child-avatar';
 import { AreaStatusRow } from '@/components/status/area-status';
 import { useReviewChild } from '@/hooks/use-children';
-import { ageInYears, bairroAvatarClass, initials, timeAgo } from '@/lib/format';
+import { ageInYears, timeAgo } from '@/lib/format';
 import type { Child } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -81,15 +82,7 @@ export function ChildRow({ child }: { child: Child }) {
       )}
     >
       <div className="flex items-start gap-3">
-        <div
-          className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold shadow-sm',
-            bairroAvatarClass(child.bairro),
-          )}
-          aria-hidden="true"
-        >
-          {initials(child.nome)}
-        </div>
+        <ChildAvatar child={child} size="md" />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
