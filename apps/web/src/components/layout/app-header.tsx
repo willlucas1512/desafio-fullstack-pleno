@@ -32,18 +32,20 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="container flex h-16 items-center gap-3">
-        <Link href="/dashboard" className="flex items-center gap-3 focus-ring rounded-md">
+        <Link href="/dashboard" className="flex items-center gap-2.5 focus-ring rounded-md">
           <Image
             src="/pcrj-logo.svg"
             alt="Prefeitura da Cidade do Rio de Janeiro"
             width={96}
             height={48}
-            className="h-8 w-auto brightness-0 dark:invert"
+            className="h-7 w-auto brightness-0 dark:invert"
             priority
           />
-          <span className="hidden h-7 w-px bg-border sm:inline-block" aria-hidden="true" />
-          <span className="hidden text-sm font-semibold tracking-tight text-foreground sm:inline">
-            Painel Social
+          <span className="hidden flex-col leading-tight sm:flex">
+            <span className="text-sm font-semibold tracking-tight">Painel Social</span>
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              Acompanhamento
+            </span>
           </span>
         </Link>
 
