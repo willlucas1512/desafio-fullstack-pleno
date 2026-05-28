@@ -27,6 +27,14 @@ export function hasAlertsIn(child: Child, area: AlertArea): boolean {
 export function hasAnyAlert(child: Child): boolean {
   return hasHealthAlerts(child) || hasEducationAlerts(child) || hasSocialAlerts(child);
 }
+
+export function countAlerts(child: Child): number {
+  return (
+    (child.saude?.alertas.length ?? 0) +
+    (child.educacao?.alertas.length ?? 0) +
+    (child.assistencia_social?.alertas.length ?? 0)
+  );
+}
 export function hasNoAreaData(child: Child): boolean {
   return child.saude === null && child.educacao === null && child.assistencia_social === null;
 }

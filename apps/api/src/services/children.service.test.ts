@@ -19,6 +19,31 @@ describe('ChildrenService.list', () => {
     expect(result.pagination).toEqual({ page: 1, pageSize: 10, total: 5, totalPages: 1 });
   });
 
+  it('filters by nome (substring, case- and accent-insensitive)', () => {
+    expect(
+      service.list(defaultQuery({ nome: 'ana' })).items.map((c) => c.id),
+    ).toEqual(['c001']);
+    expect(service.list(defaultQuery({ nome: 'SOFIA' })).items.map((c) => c.id)).toEqual(['c003']);
+    expect(service.list(defaultQuery({ nome: 'xx' })).items).toHaveLength(0);
+  });
+
+  it('sorts by alertas DESC by default (mais alertas primeiro)', () => {
+    const result = service.list(defaultQuery());
+    // c002 tem 3 alertas, c001 e c003 têm 1, c004 c005 sem alertas
+    expect(result.items[0]?.id).toBe('c002');
+  });
+
+  it('sorts by nome ASC when requested', () => {
+    const result = service.list(defaultQuery({ orderBy: 'nome' }));
+    expect(result.items.map((c) => c.nome)).toEqual([
+      'Amanda Torres',
+      'Ana Clara Mendes',
+      'Lucas Santos',
+      'Pedro Henrique',
+      'Sofia Lima',
+    ]);
+  });
+
   it('filters by bairro (case- and accent-insensitive)', () => {
     expect(service.list(defaultQuery({ bairro: 'rocinha' })).items).toHaveLength(2);
     expect(service.list(defaultQuery({ bairro: 'MARÉ' })).items).toHaveLength(1);
@@ -52,12 +77,13 @@ describe('ChildrenService.list', () => {
   });
 
   it('paginates results', () => {
-    const page1 = service.list(defaultQuery({ pageSize: 2, page: 1 }));
-    const page2 = service.list(defaultQuery({ pageSize: 2, page: 2 }));
-    const page3 = service.list(defaultQuery({ pageSize: 2, page: 3 }));
-    expect(page1.items.map((c) => c.id)).toEqual(['c001', 'c002']);
-    expect(page2.items.map((c) => c.id)).toEqual(['c003', 'c004']);
-    expect(page3.items.map((c) => c.id)).toEqual(['c005']);
+    const opts = { pageSize: 2, orderBy: 'nome' as const };
+    const page1 = service.list(defaultQuery({ ...opts, page: 1 }));
+    const page2 = service.list(defaultQuery({ ...opts, page: 2 }));
+    const page3 = service.list(defaultQuery({ ...opts, page: 3 }));
+    expect(page1.items.map((c) => c.nome)).toEqual(['Amanda Torres', 'Ana Clara Mendes']);
+    expect(page2.items.map((c) => c.nome)).toEqual(['Lucas Santos', 'Pedro Henrique']);
+    expect(page3.items.map((c) => c.nome)).toEqual(['Sofia Lima']);
     expect(page1.pagination).toEqual({ page: 1, pageSize: 2, total: 5, totalPages: 3 });
   });
 

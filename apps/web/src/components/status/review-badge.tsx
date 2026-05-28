@@ -8,7 +8,7 @@ export function ReviewBadge({ reviewed }: { reviewed: boolean }) {
       Revisado
     </Badge>
   ) : (
-    <Badge variant="muted" className="gap-1 font-normal">
+    <Badge variant="warning" className="gap-1 font-normal">
       <Clock className="h-3 w-3" aria-hidden="true" />
       Pendente
     </Badge>

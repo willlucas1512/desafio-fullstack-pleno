@@ -48,11 +48,14 @@ export interface ChildrenListResponse {
 }
 
 export type AlertFilter = 'com' | 'sem' | AlertArea;
+export type OrderBy = 'nome' | 'bairro' | 'idade' | 'alertas' | 'revisao';
 
 export interface ChildrenListParams {
+  nome?: string;
   bairro?: string;
   alertas?: AlertFilter;
   revisado?: boolean;
+  orderBy?: OrderBy;
   page?: number;
   pageSize?: number;
 }
