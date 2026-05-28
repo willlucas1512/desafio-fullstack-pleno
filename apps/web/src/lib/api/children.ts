@@ -25,9 +25,11 @@ export async function listNeighborhoods(): Promise<string[]> {
 
 function serialize(params: ChildrenListParams): Record<string, string | number | undefined> {
   const out: Record<string, string | number | undefined> = {};
+  if (params.nome) out.nome = params.nome;
   if (params.bairro) out.bairro = params.bairro;
   if (params.alertas) out.alertas = params.alertas;
   if (params.revisado !== undefined) out.revisado = String(params.revisado);
+  if (params.orderBy) out.orderBy = params.orderBy;
   if (params.page !== undefined) out.page = params.page;
   if (params.pageSize !== undefined) out.pageSize = params.pageSize;
   return out;
