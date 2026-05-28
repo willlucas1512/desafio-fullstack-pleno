@@ -8,15 +8,14 @@ test('login é navegável apenas com teclado', async ({ page }) => {
   await page.keyboard.press('Tab'); // esqueci minha senha
   await page.keyboard.press('Tab'); // senha
   await page.keyboard.type(E2E_PASSWORD);
-  await page.keyboard.press('Tab'); // entrar
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter'); // submete o form
   await expect(page).toHaveURL(/\/dashboard/);
 });
 
 test('header tem landmark e link âncora para conteúdo', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('E-mail').fill(E2E_EMAIL);
-  await page.getByLabel('Senha').fill(E2E_PASSWORD);
+  await page.getByLabel('Senha', { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole('button', { name: /entrar/i }).click();
   await page.waitForURL(/\/dashboard/);
 

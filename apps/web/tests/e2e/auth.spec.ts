@@ -11,7 +11,7 @@ test.describe('Autenticação', () => {
   test('login com credenciais válidas leva ao dashboard', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('E-mail').fill(E2E_EMAIL);
-    await page.getByLabel('Senha').fill(E2E_PASSWORD);
+    await page.getByLabel('Senha', { exact: true }).fill(E2E_PASSWORD);
     await page.getByRole('button', { name: /entrar/i }).click();
 
     await expect(page).toHaveURL(/\/dashboard/);
@@ -22,7 +22,7 @@ test.describe('Autenticação', () => {
   test('login com senha inválida mostra erro e permanece em /login', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('E-mail').fill(E2E_EMAIL);
-    await page.getByLabel('Senha').fill('senha-incorreta');
+    await page.getByLabel('Senha', { exact: true }).fill('senha-incorreta');
     await page.getByRole('button', { name: /entrar/i }).click();
 
     await expect(page.getByText(/senha incorret|verifique/i)).toBeVisible();
