@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Loader2, LogIn } from 'lucide-react';
+import { AlertCircle, KeyRound, Landmark, Loader2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -63,10 +63,23 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="space-y-2 text-center">
-        <CardTitle className="text-2xl">Painel de acompanhamento</CardTitle>
-        <CardDescription>Acesso restrito aos técnicos da Prefeitura.</CardDescription>
+    <Card className="w-full max-w-sm overflow-hidden border-t-4 border-t-primary shadow-lg">
+      <CardHeader className="space-y-3 pb-4 text-center">
+        <div
+          className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary"
+          aria-hidden="true"
+        >
+          <Landmark className="h-7 w-7" />
+        </div>
+        <div className="space-y-1">
+          <CardTitle className="text-xl">Painel de acompanhamento</CardTitle>
+          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+            Prefeitura da Cidade do Rio de Janeiro
+          </p>
+        </div>
+        <CardDescription className="!mt-2 text-sm">
+          Use suas credenciais cadastradas.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {expired && (
@@ -84,6 +97,7 @@ export function LoginForm() {
             <Input
               id="email"
               type="email"
+              placeholder="tecnico@prefeitura.rio"
               autoComplete="username"
               autoFocus
               aria-invalid={!!errors.email}
@@ -97,10 +111,24 @@ export function LoginForm() {
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Senha</Label>
+              <button
+                type="button"
+                onClick={() =>
+                  toast.info(
+                    'Entre em contato com o suporte da SMAS para redefinir sua senha.',
+                  )
+                }
+                className="text-xs text-muted-foreground transition-colors hover:text-foreground focus-ring rounded"
+              >
+                Esqueci minha senha
+              </button>
+            </div>
             <Input
               id="password"
               type="password"
+              placeholder="••••••••"
               autoComplete="current-password"
               aria-invalid={!!errors.password}
               aria-describedby={errors.password ? 'password-error' : undefined}
@@ -124,15 +152,17 @@ export function LoginForm() {
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
-              <LogIn className="h-4 w-4" aria-hidden="true" />
+              <KeyRound className="h-4 w-4" aria-hidden="true" />
             )}
             <span>{isSubmitting ? 'Entrando...' : 'Entrar'}</span>
           </Button>
         </form>
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          Credenciais documentadas no <code className="font-mono">README.md</code> do
-          repositório e em <code className="font-mono">apps/api/.env.example</code>.
-        </p>
+        <div className="mt-6 rounded-md border border-dashed border-muted-foreground/30 bg-muted/40 p-3 text-center text-xs">
+          <p className="font-medium text-foreground">Credenciais de teste</p>
+          <p className="mt-1 font-mono text-muted-foreground">
+            tecnico@prefeitura.rio / painel@2024
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
