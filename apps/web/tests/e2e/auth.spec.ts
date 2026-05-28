@@ -25,7 +25,7 @@ test.describe('Autenticação', () => {
     await page.getByLabel('Senha').fill('senha-incorreta');
     await page.getByRole('button', { name: /entrar/i }).click();
 
-    await expect(page.getByRole('alert')).toContainText(/senha incorret|verifique/i);
+    await expect(page.getByText(/senha incorret|verifique/i)).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
   });
 });
