@@ -1,28 +1,23 @@
-import type { Child, Prioridade, Summary } from '@/lib/types';
+import type { Child, Prioridade, Summary } from "@/lib/types";
 
-/**
- * Constrói uma `Child` de teste. `prioridade` e `total_alertas` são derivados
- * dos dados (espelhando a regra do backend) pra que qualquer override de área
- * mantenha os campos coerentes — mas um override explícito ainda tem precedência.
- */
 export function makeChild(overrides: Partial<Child> = {}): Child {
   const base: Child = {
-    id: 'c001',
-    nome: 'Ana Clara Mendes',
-    data_nascimento: '2020-03-15',
-    bairro: 'Rocinha',
-    responsavel: 'Maria Mendes',
-    saude: { ultima_consulta: '2025-11-10', vacinas_em_dia: true, alertas: [] },
+    id: "c001",
+    nome: "Ana Clara Mendes",
+    data_nascimento: "2020-03-15",
+    bairro: "Rocinha",
+    responsavel: "Maria Mendes",
+    saude: { ultima_consulta: "2025-11-10", vacinas_em_dia: true, alertas: [] },
     educacao: {
-      escola: 'CIEP 305 Guilherme Bryan',
+      escola: "CIEP 305 Guilherme Bryan",
       frequencia_percent: 61,
-      alertas: ['frequencia_baixa'],
+      alertas: ["frequencia_baixa"],
     },
     assistencia_social: { cad_unico: true, beneficio_ativo: true, alertas: [] },
     revisado: false,
     revisado_por: null,
     revisado_em: null,
-    prioridade: 'ok',
+    prioridade: "ok",
     total_alertas: 0,
     ...overrides,
   };
@@ -31,17 +26,20 @@ export function makeChild(overrides: Partial<Child> = {}): Child {
   );
   const total = counts.reduce((s, n) => s + n, 0);
   const areasWithAlerts = counts.filter((n) => n > 0).length;
-  const noData = base.saude === null && base.educacao === null && base.assistencia_social === null;
+  const noData =
+    base.saude === null &&
+    base.educacao === null &&
+    base.assistencia_social === null;
   const prioridade: Prioridade =
     areasWithAlerts === 3
-      ? 'critico'
+      ? "critico"
       : areasWithAlerts === 2
-        ? 'atencao'
+        ? "atencao"
         : areasWithAlerts === 1
-          ? 'monitorar'
+          ? "monitorar"
           : noData
-            ? 'sem_dados'
-            : 'ok';
+            ? "sem_dados"
+            : "ok";
   return {
     ...base,
     total_alertas: overrides.total_alertas ?? total,
@@ -50,8 +48,8 @@ export function makeChild(overrides: Partial<Child> = {}): Child {
 }
 
 export const emptyChild = makeChild({
-  id: 'c-empty',
-  nome: 'Amanda Sem Dados',
+  id: "c-empty",
+  nome: "Amanda Sem Dados",
   saude: null,
   educacao: null,
   assistencia_social: null,
@@ -66,11 +64,11 @@ export const sampleSummary: Summary = {
   pendentes_revisao: 21,
   alertas_por_area: { saude: 8, educacao: 9, assistencia_social: 8 },
   por_bairro: [
-    { bairro: 'Complexo do Alemão', total: 5, com_alertas: 4, sem_dados: 0 },
-    { bairro: 'Jacarezinho', total: 5, com_alertas: 4, sem_dados: 0 },
-    { bairro: 'Mangueira', total: 5, com_alertas: 2, sem_dados: 1 },
-    { bairro: 'Maré', total: 5, com_alertas: 3, sem_dados: 0 },
-    { bairro: 'Rocinha', total: 5, com_alertas: 4, sem_dados: 0 },
+    { bairro: "Complexo do Alemão", total: 5, com_alertas: 4, sem_dados: 0 },
+    { bairro: "Jacarezinho", total: 5, com_alertas: 4, sem_dados: 0 },
+    { bairro: "Mangueira", total: 5, com_alertas: 2, sem_dados: 1 },
+    { bairro: "Maré", total: 5, com_alertas: 3, sem_dados: 0 },
+    { bairro: "Rocinha", total: 5, com_alertas: 4, sem_dados: 0 },
   ],
   cobertura: {
     com_saude: 23,

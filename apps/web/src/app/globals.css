@@ -10,29 +10,22 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    /* Marca PCRJ — navy #13335a (manual de marca 2025) */
     --primary: 213 65% 21%;
     --primary-foreground: 0 0% 100%;
-    /* cinza neutro #eceded da paleta institucional */
     --secondary: 180 4% 93%;
     --secondary-foreground: 213 65% 21%;
     --muted: 180 4% 94%;
     --muted-foreground: 215 16% 47%;
     --accent: 198 75% 94%;
     --accent-foreground: 213 65% 21%;
-    /* Marca PCRJ — ciano #42b9eb (manual de marca 2025) */
     --brand: 198 81% 59%;
-    /* texto sobre o ciano: navy, pois branco reprova no contraste (2.1:1) */
     --brand-foreground: 213 65% 21%;
-    /* escurecido (60%->45%) p/ texto branco passar 4.5:1 (WCAG 1.4.3) */
     --destructive: 0 72% 45%;
     --destructive-foreground: 210 40% 98%;
     --warning: 38 92% 50%;
     --warning-foreground: 222 47% 11%;
-    /* escurecido (38%->30%) p/ texto branco passar 4.5:1 (WCAG 1.4.3) */
     --success: 142 72% 30%;
     --success-foreground: 210 40% 98%;
-    /* paleta tonal da marca (navy -> ciano) para gráficos */
     --chart-1: 213 65% 26%;
     --chart-2: 203 62% 44%;
     --chart-3: 198 81% 56%;
@@ -49,7 +42,6 @@
     --card-foreground: 210 40% 98%;
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
-    /* navy #13335a clareado para contraste em superfícies escuras */
     --primary: 212 55% 32%;
     --primary-foreground: 0 0% 100%;
     --secondary: 217 24% 17%;
@@ -60,20 +52,12 @@
     --accent-foreground: 198 81% 72%;
     --brand: 198 81% 62%;
     --brand-foreground: 213 60% 14%;
-    /* vermelho de texto sobre fundo escuro: o 31% antigo não passava de longe
-       no contraste (WCAG 1.4.3). Como a variante `destructive` de botão/badge
-       (texto branco sobre vermelho sólido) não é usada em lugar nenhum, podemos
-       clarear o token sem quebrar nada — os únicos `bg-destructive` sólidos são
-       a barra de progresso e o ponto da legenda, ambos sem texto por cima. */
     --destructive: 0 91% 71%;
     --destructive-foreground: 210 40% 98%;
     --warning: 38 92% 50%;
     --warning-foreground: 222 47% 11%;
-    /* no escuro o verde precisa clarear (texto-em-fundo-escuro) e o texto
-       sobre o verde vira escuro — passa 4.5:1 nos dois usos (WCAG 1.4.3) */
     --success: 142 55% 52%;
     --success-foreground: 144 70% 10%;
-    /* paleta tonal da marca (navy -> ciano) para gráficos */
     --chart-1: 210 70% 58%;
     --chart-2: 201 78% 62%;
     --chart-3: 198 81% 66%;
@@ -89,7 +73,9 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: 'rlig' 1, 'calt' 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 }
 
@@ -99,16 +85,6 @@
   }
 }
 
-/* ----------------------------------------------------------------------------
- * Widgets de acessibilidade flutuantes (VLibras + menu "um clique").
- * No desktop o botão do VLibras fica na lateral direita (dentro da margem do
- * container, sem sobrepor nada). No mobile ele cairia em cima dos cards, então
- * movemos pro canto inferior esquerdo (o menu de acessibilidade fica no inferior
- * direito). O CSS do VLibras é injetado em runtime DEPOIS deste arquivo e define
- * `top`/`right` como longhands !important; por isso usamos `html body` (maior
- * especificidade) e sobrescrevemos cada longhand — senão o `top` do VLibras
- * volta a valer e o botão "estica" e some.
- * -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
   html body [vw] [vw-access-button] {
     position: fixed !important;
@@ -119,9 +95,6 @@
   }
 }
 
-/* O botão do menu de acessibilidade centraliza o ícone por text-align + line-height,
- * mas o glifo do Material Icons tem métricas próprias e fica descentralizado no
- * quadrado. Centralizamos nos dois eixos com flexbox. */
 ._access-icon {
   display: flex !important;
   align-items: center !important;
@@ -129,12 +102,7 @@
   line-height: 1 !important;
 }
 
-/* ----------------------------------------------------------------------------
- * Impressão / exportar PDF (botão "Imprimir" na ficha da criança)
- * Sempre imprime em tema claro, sem o cromo do app (header, botões, navegação).
- * -------------------------------------------------------------------------- */
 @media print {
-  /* força paleta clara mesmo se o usuário estiver no modo escuro */
   :root,
   .dark {
     --background: 0 0% 100%;
@@ -150,8 +118,6 @@
     --destructive: 0 74% 42%;
     --destructive-foreground: 0 0% 100%;
     --warning: 35 92% 42%;
-    /* texto do chip/banner de alerta fica sobre fundo claro (bg-warning/10),
-       então precisa ser escuro — não branco, senão some no PDF */
     --warning-foreground: 28 80% 24%;
     --success: 142 70% 32%;
     --success-foreground: 0 0% 100%;
@@ -161,12 +127,10 @@
   html,
   body {
     background: #fff !important;
-    /* preserva as cores dos alertas/áreas no PDF */
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  /* o container do app ganha largura total e sem respiros laterais */
   .container {
     max-width: 100% !important;
     padding-left: 0 !important;
@@ -178,19 +142,16 @@
     padding-bottom: 0 !important;
   }
 
-  /* nada de sombras no papel */
-  [class*='shadow'] {
+  [class*="shadow"] {
     box-shadow: none !important;
   }
 
-  /* evita cortar cards/seções entre páginas */
   section,
   header,
   .print-block {
     break-inside: avoid;
   }
 
-  /* esconde toasts e qualquer overlay flutuante */
   [data-sonner-toaster] {
     display: none !important;
   }

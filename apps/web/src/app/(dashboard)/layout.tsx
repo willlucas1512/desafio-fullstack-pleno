@@ -1,34 +1,37 @@
-'use client';
+"use client";
 
-import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useRef } from 'react';
-import { AppHeader } from '@/components/layout/app-header';
-import { useAuth } from '@/hooks/use-auth';
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { AppHeader } from "@/components/layout/app-header";
+import { useAuth } from "@/hooks/use-auth";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const { status } = useAuth();
   const wasAuthenticated = useRef(false);
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === "authenticated") {
       wasAuthenticated.current = true;
       return;
     }
-    if (status === 'unauthenticated') {
+    if (status === "unauthenticated") {
       const params = new URLSearchParams();
-      // sessão expirou com a página aberta -> sinaliza para o login exibir o aviso
-      if (wasAuthenticated.current) params.set('reason', 'expired');
-      if (typeof window !== 'undefined') {
-        params.set('next', window.location.pathname + window.location.search);
+      if (wasAuthenticated.current) params.set("reason", "expired");
+      if (typeof window !== "undefined") {
+        params.set("next", window.location.pathname + window.location.search);
       }
       const query = params.toString();
-      router.replace(query ? `/login?${query}` : '/login');
+      router.replace(query ? `/login?${query}` : "/login");
     }
   }, [status, router]);
 
-  if (status === 'loading' || status === 'unauthenticated') {
+  if (status === "loading" || status === "unauthenticated") {
     return (
       <div
         className="flex min-h-screen items-center justify-center"
@@ -36,7 +39,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         aria-live="polite"
         aria-label="Verificando sessão"
       >
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+        <Loader2
+          className="h-6 w-6 animate-spin text-muted-foreground"
+          aria-hidden="true"
+        />
       </div>
     );
   }
@@ -50,7 +56,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         Pular para o conteúdo
       </a>
       <AppHeader />
-      <main id="conteudo" tabIndex={-1} className="container flex-1 py-6 focus:outline-none">
+      <main
+        id="conteudo"
+        tabIndex={-1}
+        className="container flex-1 py-6 focus:outline-none"
+      >
         {children}
       </main>
     </div>

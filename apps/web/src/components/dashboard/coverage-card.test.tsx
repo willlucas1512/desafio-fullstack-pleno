@@ -1,26 +1,33 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { sampleSummary } from '@/test/fixtures';
-import { CoverageCard } from './coverage-card';
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { sampleSummary } from "@/test/fixtures";
+import { CoverageCard } from "./coverage-card";
 
-describe('CoverageCard', () => {
-  it('shows per-area coverage and a callout when there is at least one fully uncovered child', () => {
+describe("CoverageCard", () => {
+  it("mostra a cobertura por area e um alerta quando ha pelo menos uma crianca totalmente sem cobertura", () => {
     render(
-      <CoverageCard coverage={sampleSummary.cobertura} total={sampleSummary.total_criancas} />,
+      <CoverageCard
+        coverage={sampleSummary.cobertura}
+        total={sampleSummary.total_criancas}
+      />,
     );
     expect(screen.getByText(/Saúde/i)).toBeInTheDocument();
     expect(screen.getByText(/Educação/i)).toBeInTheDocument();
     expect(screen.getByText(/Assistência social/i)).toBeInTheDocument();
-    expect(screen.getByText(/sem registro em nenhuma área/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/sem registro em nenhuma área/i),
+    ).toBeInTheDocument();
   });
 
-  it('omits the callout when no child is fully uncovered', () => {
+  it("omite o callout quando nenhuma crianca está totalmente sem cobertura", () => {
     render(
       <CoverageCard
         coverage={{ ...sampleSummary.cobertura, sem_nenhuma_area: 0 }}
         total={sampleSummary.total_criancas}
       />,
     );
-    expect(screen.queryByText(/sem registro em nenhuma área/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/sem registro em nenhuma área/i),
+    ).not.toBeInTheDocument();
   });
 });

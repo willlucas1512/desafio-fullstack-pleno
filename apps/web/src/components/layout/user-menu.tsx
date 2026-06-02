@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { ChevronDown, LogOut, UserCircle } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { Button } from '@/components/ui/button';
+import { ChevronDown, LogOut, UserCircle } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,15 +10,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { THEME_OPTIONS } from './nav-items';
+} from "@/components/ui/dropdown-menu";
+import { THEME_OPTIONS } from "./nav-items";
 
 interface Props {
   username: string;
   onLogout: () => void;
 }
 
-/** Dropdown do usuário (desktop): identidade, seletor de tema e sair. */
 export function UserMenu({ username, onLogout }: Props) {
   const { setTheme } = useTheme();
 
@@ -31,7 +30,10 @@ export function UserMenu({ username, onLogout }: Props) {
           className="hidden h-9 gap-1.5 pl-2 pr-2 text-primary-foreground hover:bg-white/10 hover:text-primary-foreground md:inline-flex"
           aria-label="Menu do usuário"
         >
-          <UserCircle className="h-5 w-5 text-primary-foreground/80" aria-hidden="true" />
+          <UserCircle
+            className="h-5 w-5 text-primary-foreground/80"
+            aria-hidden="true"
+          />
           <span className="text-sm">{username}</span>
           <ChevronDown className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />
         </Button>
@@ -51,7 +53,10 @@ export function UserMenu({ username, onLogout }: Props) {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onLogout} className="text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          onClick={onLogout}
+          className="text-destructive focus:text-destructive"
+        >
           <LogOut className="mr-2 h-4 w-4" /> Sair
         </DropdownMenuItem>
       </DropdownMenuContent>

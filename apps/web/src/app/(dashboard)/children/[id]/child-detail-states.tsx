@@ -1,12 +1,11 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { httpStatus } from '@/lib/api/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import Link from "next/link";
+import { httpStatus } from "@/lib/api/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
-/** Placeholder de carregamento da ficha. */
 export function ChildDetailSkeleton() {
   return (
     <div className="space-y-4">
@@ -21,16 +20,21 @@ export function ChildDetailSkeleton() {
   );
 }
 
-/** Estado de erro da ficha: distingue 404 (não existe) de falha recuperável. */
-export function ChildDetailError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+export function ChildDetailError({
+  error,
+  onRetry,
+}: {
+  error: unknown;
+  onRetry: () => void;
+}) {
   const notFound = httpStatus(error) === 404;
   return (
     <Card>
       <CardContent className="space-y-3 p-6 text-center">
         <p className="text-sm text-destructive">
           {notFound
-            ? 'Criança não encontrada.'
-            : 'Não foi possível carregar os dados desta criança.'}
+            ? "Criança não encontrada."
+            : "Não foi possível carregar os dados desta criança."}
         </p>
         <div className="flex justify-center gap-2">
           <Button variant="outline" asChild>

@@ -1,9 +1,3 @@
-/**
- * Constantes de configuração da UI. Centraliza números antes espalhados pelos
- * hooks e providers (paginação, debounce de busca, tempos de cache do React
- * Query) num único lugar de ajuste.
- */
-
 /** Tamanho fixo da página na listagem de crianças. */
 export const PAGE_SIZE = 10;
 

@@ -1,8 +1,7 @@
-import type { LucideIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import type { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// Medidor de progresso (ex.: frequência vs. mínimo). A cor segue a comparação
-// visível (`value < min`) para nunca contradizer o número exibido na tela.
+// Medidor de progresso (ex.: frequência vs. mínimo).
 export function AreaMeter({
   label,
   value,
@@ -25,10 +24,12 @@ export function AreaMeter({
         <div>
           <span className="block text-xs text-muted-foreground">{label}</span>
           <span className="mt-0.5 block font-semibold">
-            <span className={below ? 'text-destructive' : 'text-success'}>
+            <span className={below ? "text-destructive" : "text-success"}>
               {value}%
             </span>
-            <span className="ml-1 font-normal text-muted-foreground">/ {min}% mínimo</span>
+            <span className="ml-1 font-normal text-muted-foreground">
+              / {min}% mínimo
+            </span>
           </span>
         </div>
         <div
@@ -40,7 +41,10 @@ export function AreaMeter({
           aria-label={`${label}: ${value}% (mínimo ${min}%)`}
         >
           <div
-            className={cn('h-full rounded-full', below ? 'bg-destructive' : 'bg-success')}
+            className={cn(
+              "h-full rounded-full",
+              below ? "bg-destructive" : "bg-success",
+            )}
             style={{ width: `${pct}%` }}
           />
         </div>

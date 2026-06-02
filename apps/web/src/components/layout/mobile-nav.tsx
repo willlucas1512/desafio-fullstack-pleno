@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { LogOut } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { NAV, THEME_OPTIONS, isActivePath } from './nav-items';
+import { LogOut } from "lucide-react";
+import { useTheme } from "next-themes";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { NAV, THEME_OPTIONS, isActivePath } from "./nav-items";
 
 interface Props {
   pathname: string | null;
@@ -14,7 +14,6 @@ interface Props {
   onLogout: () => void;
 }
 
-/** Painel de navegação móvel: links, sair e seletor de tema. */
 export function MobileNav({ pathname, username, onNavigate, onLogout }: Props) {
   const { setTheme, theme } = useTheme();
 
@@ -37,10 +36,10 @@ export function MobileNav({ pathname, username, onNavigate, onLogout }: Props) {
             href={item.href}
             onClick={onNavigate}
             className={cn(
-              'block rounded-md px-3 py-2.5 text-sm font-medium text-primary-foreground/80 transition-colors hover:bg-white/10 hover:text-primary-foreground focus-ring',
-              active && 'bg-brand text-brand-foreground',
+              "block rounded-md px-3 py-2.5 text-sm font-medium text-primary-foreground/80 transition-colors hover:bg-white/10 hover:text-primary-foreground focus-ring",
+              active && "bg-brand text-brand-foreground",
             )}
-            aria-current={active ? 'page' : undefined}
+            aria-current={active ? "page" : undefined}
           >
             {item.label}
           </Link>
@@ -65,10 +64,10 @@ export function MobileNav({ pathname, username, onNavigate, onLogout }: Props) {
               onClick={() => setTheme(value)}
               aria-pressed={theme === value}
               className={cn(
-                'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors focus-ring',
+                "flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors focus-ring",
                 theme === value
-                  ? 'bg-white/15 text-primary-foreground'
-                  : 'text-primary-foreground/70 hover:bg-white/10 hover:text-primary-foreground',
+                  ? "bg-white/15 text-primary-foreground"
+                  : "text-primary-foreground/70 hover:bg-white/10 hover:text-primary-foreground",
               )}
             >
               <Icon className="h-3.5 w-3.5" aria-hidden="true" />

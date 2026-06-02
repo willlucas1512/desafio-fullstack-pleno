@@ -1,8 +1,11 @@
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from "lucide-react";
 
-/** Grade de blocos de informação (2 colunas), cada um com ícone + rótulo + valor. */
 export function AreaFields({ children }: { children: React.ReactNode }) {
-  return <dl className="grid grid-cols-1 gap-2.5 text-sm sm:grid-cols-2">{children}</dl>;
+  return (
+    <dl className="grid grid-cols-1 gap-2.5 text-sm sm:grid-cols-2">
+      {children}
+    </dl>
+  );
 }
 
 export function AreaField({
