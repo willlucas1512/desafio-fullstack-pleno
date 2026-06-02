@@ -62,25 +62,49 @@ export function ChildRow({ child }: { child: Child }) {
       >
         <span className="sr-only">Ver ficha de {child.nome}</span>
       </Link>
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <ChildAvatar child={child} size="md" />
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-base font-semibold text-foreground">{child.nome}</p>
-            {child.revisado && (
-              <Check
-                className="h-4 w-4 shrink-0 text-success"
-                strokeWidth={3}
-                aria-label="Revisado"
-              />
+          {/* nome + contagem na mesma linha: a contagem fica no topo (não
+              "flutua" no meio vertical) e libera a largura antes consumida
+              pela coluna de ações. */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <p className="truncate text-base font-semibold text-foreground">{child.nome}</p>
+              {child.revisado && (
+                <Check
+                  className="h-4 w-4 shrink-0 text-success"
+                  strokeWidth={3}
+                  aria-label="Revisado"
+                />
+              )}
+            </div>
+            {totalAlerts > 0 && (
+              <span
+                className="flex shrink-0 items-baseline gap-1 leading-none"
+                title={`${totalAlerts} ${totalAlerts === 1 ? 'alerta' : 'alertas'} no total`}
+              >
+                <span
+                  className={cn(
+                    'text-xl font-bold tabular-nums',
+                    priority === 'critico' ? 'text-destructive' : 'text-foreground',
+                  )}
+                >
+                  {totalAlerts}
+                </span>
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {totalAlerts === 1 ? 'alerta' : 'alertas'}
+                </span>
+              </span>
             )}
           </div>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {child.bairro} · {ageInYears(child.data_nascimento)} anos · {child.responsavel}
           </p>
 
-          <div className="mt-2 flex min-h-[1.25rem] flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
             {areas.length > 0 ? (
               areas.map(({ area, count }) => {
                 const Icon = AREA_ICON[area];
@@ -112,53 +136,36 @@ export function ChildRow({ child }: { child: Child }) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {totalAlerts > 0 && (
-            <span
-              className="flex flex-col items-center leading-none"
-              title={`${totalAlerts} ${totalAlerts === 1 ? 'alerta' : 'alertas'} no total`}
-            >
-              <span
-                className={cn(
-                  'text-2xl font-bold tabular-nums',
-                  priority === 'critico' ? 'text-destructive' : 'text-foreground',
-                )}
-              >
-                {totalAlerts}
-              </span>
-              <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                {totalAlerts === 1 ? 'alerta' : 'alertas'}
-              </span>
-            </span>
-          )}
-          {!child.revisado && (
-            <button
-              type="button"
-              onClick={handleQuickReview}
-              disabled={reviewing}
-              aria-label="Marcar como revisado"
-              className={cn(
-                'relative z-10 inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-[11px] font-medium text-muted-foreground transition-colors',
-                'hover:border-primary/40 hover:bg-secondary hover:text-foreground',
-                'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                'disabled:cursor-not-allowed disabled:opacity-50',
-              )}
-            >
-              {reviewing ? (
-                <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
-              ) : (
-                <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden="true" />
-              )}
-              Revisar
-            </button>
-          )}
-          <ChevronRight
-            className="h-4 w-4 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:text-primary"
-            aria-hidden="true"
-          />
-        </div>
+        <ChevronRight
+          className="mt-0.5 h-4 w-4 shrink-0 self-center text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:text-primary"
+          aria-hidden="true"
+        />
       </div>
+
+      {/* ação rápida: sobreposta no canto (não reserva largura no fluxo, que
+          antes espremia o texto no mobile mesmo estando invisível). */}
+      {!child.revisado && (
+        <button
+          type="button"
+          onClick={handleQuickReview}
+          disabled={reviewing}
+          aria-label="Marcar como revisado"
+          className={cn(
+            'absolute bottom-3 right-3 z-10 inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-[11px] font-medium text-muted-foreground shadow-sm transition-colors',
+            'hover:border-primary/40 hover:bg-secondary hover:text-foreground',
+            'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+          )}
+        >
+          {reviewing ? (
+            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+          ) : (
+            <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden="true" />
+          )}
+          Revisar
+        </button>
+      )}
     </div>
   );
 }

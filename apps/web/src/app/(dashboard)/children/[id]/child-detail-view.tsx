@@ -122,7 +122,7 @@ export function ChildDetailView({ id }: { id: string }) {
               <h1 className="text-2xl font-bold leading-none tracking-tight md:text-3xl">
                 {child.nome}
               </h1>
-              <code className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono uppercase text-muted-foreground">
+              <code className="inline-flex items-center rounded bg-muted px-1.5 py-1 font-mono text-[11px] uppercase leading-none tracking-wide text-muted-foreground">
                 {child.id}
               </code>
             </div>
