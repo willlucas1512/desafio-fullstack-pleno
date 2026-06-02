@@ -21,15 +21,15 @@ export function CoverageCard({ coverage, total }: Props) {
   ];
 
   return (
-    <Card>
+    <Card className="flex h-full flex-col">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Cobertura por área</CardTitle>
         <CardDescription>
-          Quantas crianças têm registro em cada sistema. Lacunas indicam falhas de
-          cadastro — não significam &ldquo;tudo certo&rdquo;.
+          Proporção de crianças com registro em cada sistema. Lacunas apontam
+          ausência de cadastro, não ausência de risco.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="flex flex-1 flex-col justify-between gap-3">
         {rows.map(({ label, value, icon: Icon, tone }) => {
           const pct = total > 0 ? value / total : 0;
           return (

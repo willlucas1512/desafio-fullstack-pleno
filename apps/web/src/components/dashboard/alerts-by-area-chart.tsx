@@ -15,9 +15,9 @@ import { AREA_LABEL } from '@/lib/format';
 import type { AlertsByArea } from '@/lib/types';
 
 const AREA_COLORS = {
-  saude: '#e11d48', // rose-600 — bate com Heart icon
-  educacao: '#2563eb', // blue-600 — bate com GraduationCap
-  assistencia_social: '#059669', // emerald-600 — bate com HandHeart
+  saude: 'hsl(var(--chart-1))', // navy escuro
+  educacao: 'hsl(var(--chart-2))', // azul médio
+  assistencia_social: 'hsl(var(--chart-3))', // ciano/teal
 } as const;
 
 export function AlertsByAreaChart({ data }: { data: AlertsByArea }) {
@@ -35,18 +35,31 @@ export function AlertsByAreaChart({ data }: { data: AlertsByArea }) {
   return (
     <div className="h-64 w-full" role="img" aria-label="Quantidade de crianças com alerta por área">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={series} margin={{ top: 24, right: 10, bottom: 0, left: -16 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-          <XAxis dataKey="area" tick={{ fontSize: 12 }} className="text-muted-foreground" />
-          <YAxis allowDecimals={false} tick={{ fontSize: 12 }} className="text-muted-foreground" />
+        <BarChart data={series} margin={{ top: 24, right: 10, bottom: 0, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <XAxis
+            dataKey="area"
+            tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+            tickLine={{ stroke: 'hsl(var(--border))' }}
+            axisLine={{ stroke: 'hsl(var(--border))' }}
+          />
+          <YAxis
+            width={26}
+            allowDecimals={false}
+            tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+            tickLine={{ stroke: 'hsl(var(--border))' }}
+            axisLine={{ stroke: 'hsl(var(--border))' }}
+          />
           <Tooltip
-            cursor={{ fill: 'hsl(var(--muted))' }}
+            cursor={{ fill: 'hsl(var(--muted) / 0.4)' }}
             contentStyle={{
               background: 'hsl(var(--popover))',
               border: '1px solid hsl(var(--border))',
               borderRadius: 6,
               color: 'hsl(var(--popover-foreground))',
             }}
+            labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+            itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
           />
           <Bar dataKey="value" radius={[6, 6, 0, 0]} name="Com alertas">
             {series.map((entry) => (
