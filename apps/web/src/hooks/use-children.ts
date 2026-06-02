@@ -9,6 +9,7 @@ import {
   reviewChild,
   unreviewChild,
 } from '@/lib/api/children';
+import { NEIGHBORHOODS_STALE_TIME_MS } from '@/lib/constants';
 import type { Child, ChildrenListParams } from '@/lib/types';
 
 /** Propaga o estado atualizado da criança pra todos os caches relevantes. */
@@ -38,7 +39,7 @@ export function useNeighborhoods() {
   return useQuery({
     queryKey: ['neighborhoods'],
     queryFn: listNeighborhoods,
-    staleTime: 5 * 60_000,
+    staleTime: NEIGHBORHOODS_STALE_TIME_MS,
   });
 }
 

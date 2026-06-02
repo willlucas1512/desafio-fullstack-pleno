@@ -3,9 +3,9 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { PAGE_SIZE, SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import type { AlertFilter, ChildrenListParams, OrderBy } from '@/lib/types';
 
-const PAGE_SIZE = 10;
 const ALERT_VALUES: AlertFilter[] = ['com', 'sem', 'saude', 'educacao', 'assistencia_social'];
 const ORDER_VALUES: OrderBy[] = ['alertas', 'nome', 'bairro', 'idade', 'revisao'];
 
@@ -61,7 +61,7 @@ export function useChildrenFilters(): ChildrenFiltersController {
   const params = useMemo(() => parseParams(search), [search]);
 
   const [draft, setDraft] = useState(params);
-  const debouncedNome = useDebouncedValue(draft.nome, 300);
+  const debouncedNome = useDebouncedValue(draft.nome, SEARCH_DEBOUNCE_MS);
 
   // re-sincroniza quando a URL muda por fora (voltar/avançar, links pré-filtrados)
   useEffect(() => {
