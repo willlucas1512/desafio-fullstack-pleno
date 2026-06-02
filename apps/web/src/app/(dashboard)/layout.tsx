@@ -2,21 +2,29 @@
 
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppHeader } from '@/components/layout/app-header';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { status } = useAuth();
+  const wasAuthenticated = useRef(false);
 
   useEffect(() => {
+    if (status === 'authenticated') {
+      wasAuthenticated.current = true;
+      return;
+    }
     if (status === 'unauthenticated') {
-      const next =
-        typeof window !== 'undefined'
-          ? encodeURIComponent(window.location.pathname + window.location.search)
-          : '';
-      router.replace(next ? `/login?next=${next}` : '/login');
+      const params = new URLSearchParams();
+      // sessão expirou com a página aberta -> sinaliza para o login exibir o aviso
+      if (wasAuthenticated.current) params.set('reason', 'expired');
+      if (typeof window !== 'undefined') {
+        params.set('next', window.location.pathname + window.location.search);
+      }
+      const query = params.toString();
+      router.replace(query ? `/login?${query}` : '/login');
     }
   }, [status, router]);
 
@@ -34,9 +42,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
+      <a
+        href="#conteudo"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      >
+        Pular para o conteúdo
+      </a>
       <AppHeader />
-      <main id="conteudo" className="container flex-1 py-6">
+      <main id="conteudo" tabIndex={-1} className="container flex-1 py-6 focus:outline-none">
         {children}
       </main>
     </div>
