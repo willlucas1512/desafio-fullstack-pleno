@@ -1,4 +1,4 @@
-import { bairroAvatarClass, initials } from '@/lib/format';
+import { initials } from '@/lib/format';
 import type { Child } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -21,9 +21,9 @@ export function ChildAvatar({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-full font-semibold shadow-sm',
+        // estilo institucional único (navy sobre cinza claro) — sem cor por bairro
+        'flex shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary ring-1 ring-inset ring-primary/15',
         SIZES[size],
-        bairroAvatarClass(child.bairro),
         className,
       )}
       aria-hidden="true"

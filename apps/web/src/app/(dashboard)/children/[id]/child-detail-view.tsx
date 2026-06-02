@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Loader2,
   Printer,
+  RotateCcw,
   Share2,
   User,
 } from 'lucide-react';
@@ -22,38 +23,18 @@ import { SocialCard } from '@/components/children/social-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useChild, useReviewChild } from '@/hooks/use-children';
+import { useChild, useReviewChild, useUnreviewChild } from '@/hooks/use-children';
+import { alertsByArea, getPriority, totalAlerts } from '@/lib/child-status';
 import { ageInYears, formatDateBR, formatDateTimeBR } from '@/lib/format';
-import type { Child } from '@/lib/types';
 import { cn } from '@/lib/utils';
-
-type Priority = 'critico' | 'atencao' | 'monitorar' | 'sem_dados' | 'ok';
-
-function getPriority(child: Child): { level: Priority; alertCount: number; areasWithAlerts: number } {
-  const alertCount =
-    (child.saude?.alertas.length ?? 0) +
-    (child.educacao?.alertas.length ?? 0) +
-    (child.assistencia_social?.alertas.length ?? 0);
-  const areasWithAlerts =
-    (child.saude && child.saude.alertas.length > 0 ? 1 : 0) +
-    (child.educacao && child.educacao.alertas.length > 0 ? 1 : 0) +
-    (child.assistencia_social && child.assistencia_social.alertas.length > 0 ? 1 : 0);
-  const noData =
-    child.saude === null && child.educacao === null && child.assistencia_social === null;
-
-  let level: Priority = 'ok';
-  if (areasWithAlerts === 3) level = 'critico';
-  else if (areasWithAlerts === 2) level = 'atencao';
-  else if (areasWithAlerts === 1) level = 'monitorar';
-  else if (noData) level = 'sem_dados';
-
-  return { level, alertCount, areasWithAlerts };
-}
 
 export function ChildDetailView({ id }: { id: string }) {
   const { data: child, isLoading, isError, error, refetch } = useChild(id);
   const { mutate: review, isPending: reviewing } = useReviewChild();
+  const { mutate: unreview, isPending: unreviewing } = useUnreviewChild();
   const [copied, setCopied] = useState(false);
+  // data/hora de geração da ficha (usada só no cabeçalho de impressão)
+  const [generatedAt] = useState(() => new Date().toISOString());
 
   if (isLoading) {
     return (
@@ -94,7 +75,9 @@ export function ChildDetailView({ id }: { id: string }) {
 
   if (!child) return null;
 
-  const priority = getPriority(child);
+  const level = getPriority(child);
+  const alertCount = totalAlerts(child);
+  const areasWithAlerts = alertsByArea(child).length;
 
   const handleCopyLink = async () => {
     try {
@@ -111,8 +94,16 @@ export function ChildDetailView({ id }: { id: string }) {
 
   return (
     <div className="space-y-4">
-      {/* breadcrumb */}
-      <nav aria-label="Localização" className="flex items-center gap-1.5 text-sm">
+      <div className="hidden print:block print-block border-b pb-3">
+        <p className="text-sm font-semibold uppercase tracking-wide">
+          Prefeitura da Cidade do Rio de Janeiro
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Painel de Acompanhamento Infantil · Ficha gerada em {formatDateTimeBR(generatedAt)}
+        </p>
+      </div>
+
+      <nav aria-label="Localização" className="flex items-center gap-1.5 text-sm print:hidden">
         <Link
           href="/children"
           className="text-muted-foreground transition-colors hover:text-foreground focus-ring rounded"
@@ -123,13 +114,14 @@ export function ChildDetailView({ id }: { id: string }) {
         <span className="truncate font-medium text-foreground">{child.nome}</span>
       </nav>
 
-      {/* hero */}
       <header className="rounded-lg border bg-card p-4 sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           <ChildAvatar child={child} size="xl" />
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-baseline gap-2">
-              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{child.nome}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold leading-none tracking-tight md:text-3xl">
+                {child.nome}
+              </h1>
               <code className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono uppercase text-muted-foreground">
                 {child.id}
               </code>
@@ -154,22 +146,38 @@ export function ChildDetailView({ id }: { id: string }) {
             </dl>
           </div>
 
-          {/* ações */}
-          <div className="flex flex-row gap-1.5 sm:flex-col sm:items-stretch">
-            <Button
-              type="button"
-              variant={child.revisado ? 'outline' : 'success'}
-              size="sm"
-              onClick={() => review(child.id)}
-              disabled={reviewing || child.revisado}
-            >
-              {reviewing ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Check className="h-4 w-4" aria-hidden="true" />
-              )}
-              {child.revisado ? 'Já revisado' : reviewing ? 'Salvando…' : 'Marcar como revisado'}
-            </Button>
+          <div className="flex flex-row flex-wrap gap-1.5 sm:flex-col sm:items-stretch print:hidden">
+            {child.revisado ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => unreview(child.id)}
+                disabled={unreviewing}
+              >
+                {unreviewing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                )}
+                {unreviewing ? 'Desfazendo…' : 'Desfazer revisão'}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="success"
+                size="sm"
+                onClick={() => review(child.id)}
+                disabled={reviewing}
+              >
+                {reviewing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Check className="h-4 w-4" aria-hidden="true" />
+                )}
+                {reviewing ? 'Salvando…' : 'Marcar como revisado'}
+              </Button>
+            )}
             <div className="flex gap-1.5">
               <Button
                 type="button"
@@ -198,42 +206,38 @@ export function ChildDetailView({ id }: { id: string }) {
                 <span className="hidden sm:inline">Imprimir</span>
               </Button>
             </div>
+            {child.revisado && (
+              <p className="flex w-full items-center gap-1.5 text-[11px] leading-snug text-muted-foreground sm:justify-end">
+                <Check className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
+                <span>
+                  Revisado por{' '}
+                  <strong className="font-medium text-foreground">{child.revisado_por}</strong> em{' '}
+                  {formatDateTimeBR(child.revisado_em)}
+                </span>
+              </p>
+            )}
           </div>
         </div>
       </header>
 
-      {/* banner de prioridade */}
-      {priority.level !== 'ok' && priority.level !== 'monitorar' && (
-        <PriorityBanner
-          level={priority.level}
-          alertCount={priority.alertCount}
-          areasWithAlerts={priority.areasWithAlerts}
-        />
+      {/* some quando o caso já foi revisado — a severidade segue visível nos cards de área */}
+      {!child.revisado && level !== 'ok' && level !== 'monitorar' && (
+        <PriorityBanner level={level} alertCount={alertCount} areasWithAlerts={areasWithAlerts} />
       )}
 
-      {/* status do acompanhamento (faixa fina) */}
-      {child.revisado && (
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-success/30 bg-success/5 px-3 py-2 text-sm">
-          <Check className="h-4 w-4 text-success" aria-hidden="true" />
-          <span>
-            Revisado por <strong className="font-semibold">{child.revisado_por}</strong> em{' '}
-            {formatDateTimeBR(child.revisado_em)}
-          </span>
-        </div>
-      )}
-
-      {/* 3 cards de área */}
       <section
-        aria-label="Situação por área"
+        aria-labelledby="sec-areas"
         className="grid grid-cols-1 gap-4 lg:grid-cols-3"
       >
+        <h2 id="sec-areas" className="sr-only">
+          Situação por área
+        </h2>
         <HealthCard data={child.saude} />
         <EducationCard data={child.educacao} />
         <SocialCard data={child.assistencia_social} />
       </section>
 
-      {/* voltar embaixo (atalho repetido) */}
-      <div>
+      <div className="print:hidden">
         <Button variant="ghost" size="sm" asChild>
           <Link href="/children" className="gap-1">
             <ArrowLeft className="h-4 w-4" />
@@ -261,7 +265,7 @@ function PriorityBanner({
       desc: `${alertCount} ${alertCount === 1 ? 'alerta ativo' : 'alertas ativos'} nas 3 áreas (saúde, educação e assistência social). Priorize a revisão.`,
     },
     atencao: {
-      bg: 'border-warning/40 bg-warning/10 text-warning-foreground',
+      bg: 'border-warning/40 bg-warning/10 text-warning-foreground dark:text-warning',
       title: 'Atenção',
       desc: `${alertCount} ${alertCount === 1 ? 'alerta ativo' : 'alertas ativos'} em ${areasWithAlerts} ${areasWithAlerts === 1 ? 'área' : 'áreas'}.`,
     },

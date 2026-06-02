@@ -18,6 +18,11 @@ export async function reviewChild(id: string): Promise<Child> {
   return data;
 }
 
+export async function unreviewChild(id: string): Promise<Child> {
+  const { data } = await apiClient.delete<Child>(`/children/${encodeURIComponent(id)}/review`);
+  return data;
+}
+
 export async function listNeighborhoods(): Promise<string[]> {
   const { data } = await apiClient.get<{ bairros: string[] }>('/children/neighborhoods');
   return data.bairros;
