@@ -6,8 +6,8 @@ on:
   pull_request:
 
 # GitHub define CI=true automaticamente nos runners. Os runners ubuntu já têm
-# Docker, então os testes de paridade do Postgres (Testcontainers) rodam de fato
-# — e falham alto se o Docker faltar, em vez de pular silenciosamente.
+# Docker, então os testes de integração do Postgres (Testcontainers) rodam de
+# fato — e falham alto se o Docker faltar, em vez de pular silenciosamente.
 jobs:
   build-test:
     runs-on: ubuntu-latest

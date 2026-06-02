@@ -1,14 +1,19 @@
-import { type ChildrenPage, type ListChildrenQuery, queryChildren } from '../domain/child-query.js';
-import { normalize } from '../domain/child-helpers.js';
+import {
+  listNeighborhoods,
+  queryChildren,
+  type ChildrenPage,
+  type ListChildrenQuery,
+} from '../domain/child-query.js';
 import type { Child } from '../domain/child.js';
 import { aggregate, type Summary } from '../domain/summary.js';
 import type { ChildrenStore } from '../repositories/children-store.js';
 
 /**
  * Implementação in-memory de {@link ChildrenStore} usada APENAS nos testes
- * unitários — produção é Postgres-only ({@link PostgresChildrenRepository}).
- * Reusa {@link queryChildren} (a definição canônica de filtro/ordenação/paginação)
- * pra exercitar a mesma lógica de listagem sem precisar de banco.
+ * unitários. Delega filtro/ordenação/paginação/agregação ao domínio
+ * (`queryChildren`, `aggregate`, `listNeighborhoods`) — exatamente as mesmas
+ * funções que o {@link PostgresChildrenRepository} usa em produção. Por isso o
+ * fake é um substituto fiel por construção, não por testes de paridade.
  */
 export class FakeChildrenStore implements ChildrenStore {
   private readonly byId: Map<string, Child>;
@@ -63,14 +68,7 @@ export class FakeChildrenStore implements ChildrenStore {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async listNeighborhoods(): Promise<string[]> {
-    // Mesma ordem normalizada/determinística do Postgres (ver child-query.ts).
-    return [...new Set(this.all().map((c) => c.bairro))].sort((a, b) => {
-      const na = normalize(a);
-      const nb = normalize(b);
-      if (na < nb) return -1;
-      if (na > nb) return 1;
-      return a < b ? -1 : a > b ? 1 : 0;
-    });
+    return listNeighborhoods(this.all());
   }
 
   private all(): Child[] {

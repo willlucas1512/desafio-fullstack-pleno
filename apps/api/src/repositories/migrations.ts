@@ -12,34 +12,22 @@ export interface Migration {
  */
 export const migrations: Migration[] = [
   {
-    version: '001_unaccent_extension',
-    // habilita busca por nome/bairro sem acento (unaccent() no WHERE)
-    sql: `CREATE EXTENSION IF NOT EXISTS unaccent;`,
-  },
-  {
-    version: '002_children_table',
+    version: '003_children_doc',
+    // A criança inteira é persistida como um único documento JSONB. O domínio
+    // (Zod) é a definição canônica do registro: adicionar um campo/área é uma
+    // mudança só no schema, sem tocar colunas, INSERT ou mapeamento de linha.
+    // O banco só dá durabilidade — filtro/ordenação/agregação rodam no domínio,
+    // então não há colunas de busca nem índices aqui.
+    //
+    // O DROP cobre quem tinha o esquema antigo (colunas por campo) num volume
+    // remanescente; os dados vêm do seed canônico, então recriar é seguro.
     sql: `
-      CREATE TABLE IF NOT EXISTS children (
-        seq                SERIAL,
-        id                 TEXT PRIMARY KEY,
-        nome               TEXT NOT NULL,
-        data_nascimento    TEXT NOT NULL,
-        bairro             TEXT NOT NULL,
-        responsavel        TEXT NOT NULL,
-        saude              JSONB,
-        educacao           JSONB,
-        assistencia_social JSONB,
-        revisado           BOOLEAN NOT NULL DEFAULT false,
-        revisado_por       TEXT,
-        revisado_em        TIMESTAMPTZ
+      DROP TABLE IF EXISTS children;
+      CREATE TABLE children (
+        seq  SERIAL,
+        id   TEXT PRIMARY KEY,
+        data JSONB NOT NULL
       );
-    `,
-  },
-  {
-    version: '003_children_indexes',
-    sql: `
-      CREATE INDEX IF NOT EXISTS idx_children_bairro ON children (lower(bairro));
-      CREATE INDEX IF NOT EXISTS idx_children_revisado ON children (revisado);
     `,
   },
 ];

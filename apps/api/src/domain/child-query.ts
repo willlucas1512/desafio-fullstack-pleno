@@ -30,16 +30,14 @@ export interface ChildrenPage {
 }
 
 /**
- * Aplica filtros, ordenação e paginação em memória. É a definição canônica das
- * regras de listagem — o {@link PostgresChildrenRepository} replica exatamente
- * o mesmo comportamento em SQL e o fake de testes reusa esta função. A paridade
- * SQL↔TS é garantida pela matriz em `postgres-children.repository.test.ts`.
+ * Aplica filtros, ordenação e paginação em memória. É a ÚNICA implementação das
+ * regras de listagem: tanto o {@link PostgresChildrenRepository} (produção)
+ * quanto o {@link FakeChildrenStore} (testes) carregam as crianças e delegam
+ * aqui — não há lógica de listagem duplicada em SQL.
  *
  * Ordenação determinística: todas as comparações de texto usam `normalize`
- * (NFD sem acento + lowercase, equivalente a `unaccent(lower(...))` no SQL) com
- * comparação por code point (equivalente a `COLLATE "C"`), e todo critério
- * termina com `id` como desempate estável — então JS (sort estável) e SQL
- * (ordem de heap, instável) produzem exatamente a mesma sequência.
+ * (NFD sem acento + lowercase) com comparação por code point, e todo critério
+ * termina com `id` como desempate estável.
  */
 export function queryChildren(all: Child[], q: ListChildrenQuery): ChildrenPage {
   const filtered = all.filter((child) => matchesFilters(child, q));
@@ -63,7 +61,7 @@ function matchesAlertFilter(child: Child, filter: AlertFilter): boolean {
   return hasAlertsIn(child, filter as AlertArea);
 }
 
-/** Comparação por code point (UTF-16), espelhando `COLLATE "C"` do Postgres. */
+/** Comparação determinística por code point (UTF-16). */
 function byteCompare(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
@@ -94,4 +92,15 @@ function compareBy(orderBy: OrderBy, a: Child, b: Child): number {
       // mais alertas primeiro; empate desfaz por nome
       return countAlerts(b) - countAlerts(a) || byName(a, b);
   }
+}
+
+/**
+ * Bairros distintos na mesma ordem determinística da listagem (chave `normalize`
+ * comparada por code point, desempate pelo valor cru). Fonte única usada por
+ * ambos os stores.
+ */
+export function listNeighborhoods(all: Child[]): string[] {
+  return [...new Set(all.map((c) => c.bairro))].sort(
+    (a, b) => byteCompare(normalize(a), normalize(b)) || byteCompare(a, b),
+  );
 }

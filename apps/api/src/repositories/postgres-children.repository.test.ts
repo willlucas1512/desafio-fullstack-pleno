@@ -16,10 +16,13 @@ const query = (override: Record<string, unknown> = {}): ListChildrenQuery =>
 const REQUIRE_DOCKER = process.env.CI === 'true' || process.env.CI === '1';
 
 /**
- * Cobre o caminho de produção (Postgres) com um banco real via Testcontainers e
- * trava a PARIDADE com a definição canônica de listagem (`queryChildren`, usada
- * pelo {@link FakeChildrenStore}): para cada ordenação e filtro, o SQL precisa
- * devolver exatamente a mesma sequência de ids e o mesmo total.
+ * Cobre o caminho de produção (Postgres) com um banco real via Testcontainers.
+ * Como filtro/ordenação/agregação são delegados ao domínio (mesma lógica do
+ * {@link FakeChildrenStore}, já coberta nos testes de serviço/rota), aqui o foco
+ * é I/O: seed idempotente, persistência das mutações e o round-trip de
+ * mapeamento (JSONB/timestamp → domínio via `rowToChild`). Para garantir que o
+ * caminho real produz o mesmo resultado da definição canônica em memória,
+ * comparamos list/summary/neighborhoods contra o fake sobre o seed intacto.
  */
 describe('PostgresChildrenRepository (Testcontainers)', () => {
   let container: StartedPostgreSqlContainer | undefined;
@@ -63,58 +66,31 @@ describe('PostgresChildrenRepository (Testcontainers)', () => {
     expect(await repo!.findById('id-que-nao-existe')).toBeNull();
   });
 
-  // --- Paridade SQL ↔ definição canônica (queryChildren via FakeChildrenStore) ---
-  // Roda ANTES das mutações pra comparar os dois lados sobre o mesmo seed intacto.
+  // --- Round-trip de mapeamento: o caminho real (Postgres + rowToChild) precisa
+  // devolver o MESMO resultado da definição canônica em memória (fake). Roda
+  // ANTES das mutações, sobre o seed intacto. Isso pega bugs de mapeamento
+  // JSONB/timestamp — a lógica de filtro/ordenação em si é coberta à parte.
 
-  const orderings = ['nome', 'bairro', 'idade', 'alertas', 'revisao'] as const;
-  const filters = [
-    {},
-    { alertas: 'com' },
-    { alertas: 'sem' },
-    { alertas: 'saude' },
-    { alertas: 'educacao' },
-    { alertas: 'assistencia_social' },
-    { revisado: 'true' },
-    { revisado: 'false' },
-    { nome: 'a' },
-    { bairro: 'rocinha' },
-  ] as const;
-
-  for (const orderBy of orderings) {
-    for (const filter of filters) {
-      const label = `${orderBy} + ${JSON.stringify(filter)}`;
-      it(`paridade SQL↔canônica: ${label}`, async (ctx) => {
-        if (dockerUnavailable) return ctx.skip();
-        const q = query({ ...filter, orderBy, pageSize: 100 });
-        const sql = await repo!.list(q);
-        const canon = await fake!.list(q);
-        expect(sql.total).toBe(canon.total);
-        expect(sql.items.map((c) => c.id)).toEqual(canon.items.map((c) => c.id));
-      });
-    }
-  }
-
-  it('paridade de paginação: páginas em SQL batem com a definição canônica', async (ctx) => {
+  it('list reflete a definição canônica sobre o seed', async (ctx) => {
     if (dockerUnavailable) return ctx.skip();
-    for (const page of [1, 2, 3]) {
-      const q = query({ orderBy: 'nome', page, pageSize: 7 });
-      const sql = await repo!.list(q);
-      const canon = await fake!.list(q);
-      expect(sql.items.map((c) => c.id)).toEqual(canon.items.map((c) => c.id));
-    }
+    const q = query({ orderBy: 'alertas', pageSize: 100 });
+    const fromDb = await repo!.list(q);
+    const canon = await fake!.list(q);
+    expect(fromDb.total).toBe(canon.total);
+    expect(fromDb.items).toEqual(canon.items);
   });
 
-  it('paridade de listNeighborhoods', async (ctx) => {
-    if (dockerUnavailable) return ctx.skip();
-    expect(await repo!.listNeighborhoods()).toEqual(await fake!.listNeighborhoods());
-  });
-
-  it('paridade do summary: agregação SQL bate com a definição canônica', async (ctx) => {
+  it('summary reflete a agregação canônica sobre o seed', async (ctx) => {
     if (dockerUnavailable) return ctx.skip();
     expect(await repo!.summary()).toEqual(await fake!.summary());
   });
 
-  // --- Mutações (depois da paridade, pois alteram o estado do banco) ---
+  it('listNeighborhoods reflete a ordem canônica sobre o seed', async (ctx) => {
+    if (dockerUnavailable) return ctx.skip();
+    expect(await repo!.listNeighborhoods()).toEqual(await fake!.listNeighborhoods());
+  });
+
+  // --- Mutações (depois do round-trip, pois alteram o estado do banco) ---
 
   it('markReviewed persiste a revisão no banco', async (ctx) => {
     if (dockerUnavailable) return ctx.skip();

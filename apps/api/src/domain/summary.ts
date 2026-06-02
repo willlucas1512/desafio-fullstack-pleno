@@ -46,9 +46,9 @@ export type AlertsByNeighborhood = z.infer<typeof alertsByNeighborhoodSchema>;
 export type Summary = z.infer<typeof summarySchema>;
 
 /**
- * Definição canônica da agregação do painel. É o que o {@link FakeChildrenStore}
- * usa nos testes; o {@link PostgresChildrenRepository} replica o mesmo resultado
- * em SQL (`count(*) FILTER`/`GROUP BY`) e a paridade é travada por teste.
+ * Única implementação da agregação do painel. Tanto o {@link PostgresChildrenRepository}
+ * (produção) quanto o {@link FakeChildrenStore} (testes) carregam as crianças e
+ * delegam aqui — não há agregação duplicada em SQL.
  *
  * A ordem de `por_bairro` segue a mesma normalização determinística da listagem
  * (ver child-query.ts): chave `normalize(bairro)` comparada por code point.
