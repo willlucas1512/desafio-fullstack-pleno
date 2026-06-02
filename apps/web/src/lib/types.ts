@@ -1,105 +1,45 @@
-export type HealthAlert = 'vacinas_atrasadas' | 'consulta_atrasada';
-export type EducationAlert = 'frequencia_baixa' | 'matricula_pendente';
-export type SocialAlert = 'cadastro_ausente' | 'cadastro_desatualizado' | 'beneficio_suspenso';
-export type AlertArea = 'saude' | 'educacao' | 'assistencia_social';
+import type { paths } from './api-schema';
 
-export interface HealthInfo {
-  ultima_consulta: string | null;
-  vacinas_em_dia: boolean;
-  alertas: HealthAlert[];
-}
+/**
+ * Tipos do domínio derivados do contrato OpenAPI da API (`api-schema.ts`, gerado
+ * por `npm run gen:api-types`). Fonte única de verdade: os schemas Zod do
+ * backend. Não edite à mão — ajuste a API e regenere. A CI falha se este arquivo
+ * sair de sincronia com o `openapi.json`.
+ */
 
-export interface EducationInfo {
-  escola: string | null;
-  frequencia_percent: number | null;
-  alertas: EducationAlert[];
-}
+type Json<T> = T extends { content: { 'application/json': infer B } } ? B : never;
 
-export interface SocialAssistanceInfo {
-  cad_unico: boolean;
-  beneficio_ativo: boolean;
-  alertas: SocialAlert[];
-}
+// --- Entidades ---
+export type Child = Json<paths['/children/{id}']['get']['responses']['200']>;
+export type HealthInfo = NonNullable<Child['saude']>;
+export type EducationInfo = NonNullable<Child['educacao']>;
+export type SocialAssistanceInfo = NonNullable<Child['assistencia_social']>;
 
-export interface Child {
-  id: string;
-  nome: string;
-  data_nascimento: string;
-  bairro: string;
-  responsavel: string;
-  saude: HealthInfo | null;
-  educacao: EducationInfo | null;
-  assistencia_social: SocialAssistanceInfo | null;
-  revisado: boolean;
-  revisado_por: string | null;
-  revisado_em: string | null;
-}
+export type HealthAlert = HealthInfo['alertas'][number];
+export type EducationAlert = EducationInfo['alertas'][number];
+export type SocialAlert = SocialAssistanceInfo['alertas'][number];
 
-export interface Pagination {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-}
+// --- Listagem ---
+export type ChildrenListResponse = Json<paths['/children']['get']['responses']['200']>;
+export type Pagination = ChildrenListResponse['pagination'];
 
-export interface ChildrenListResponse {
-  items: Child[];
-  pagination: Pagination;
-}
+type ChildrenQuery = NonNullable<paths['/children']['get']['parameters']['query']>;
+export type AlertFilter = NonNullable<ChildrenQuery['alertas']>;
+export type OrderBy = NonNullable<ChildrenQuery['orderBy']>;
 
-export type AlertFilter = 'com' | 'sem' | AlertArea;
-export type OrderBy = 'nome' | 'bairro' | 'idade' | 'alertas' | 'revisao';
+/**
+ * Params usados pela UI. Espelha a query da API, mas `revisado` é booleano aqui
+ * (a conversão pra string `'true'`/`'false'` acontece só na hora da requisição).
+ */
+export type ChildrenListParams = Omit<ChildrenQuery, 'revisado'> & { revisado?: boolean };
 
-export interface ChildrenListParams {
-  nome?: string;
-  bairro?: string;
-  alertas?: AlertFilter;
-  revisado?: boolean;
-  orderBy?: OrderBy;
-  page?: number;
-  pageSize?: number;
-}
+// --- Indicadores ---
+export type Summary = Json<paths['/summary']['get']['responses']['200']>;
+export type AlertsByArea = Summary['alertas_por_area'];
+export type AlertArea = keyof AlertsByArea;
+export type NeighborhoodSummary = Summary['por_bairro'][number];
+export type Coverage = Summary['cobertura'];
 
-export interface AlertsByArea {
-  saude: number;
-  educacao: number;
-  assistencia_social: number;
-}
-
-export interface NeighborhoodSummary {
-  bairro: string;
-  total: number;
-  com_alertas: number;
-  sem_dados: number;
-}
-
-export interface Coverage {
-  com_saude: number;
-  com_educacao: number;
-  com_assistencia_social: number;
-  sem_nenhuma_area: number;
-}
-
-export interface Summary {
-  total_criancas: number;
-  com_alertas: number;
-  sem_alertas: number;
-  sem_dados: number;
-  revisadas: number;
-  pendentes_revisao: number;
-  alertas_por_area: AlertsByArea;
-  por_bairro: NeighborhoodSummary[];
-  cobertura: Coverage;
-}
-
-export interface AuthTokenResponse {
-  access_token: string;
-  token_type: 'Bearer';
-}
-
-export interface ApiErrorBody {
-  statusCode: number;
-  error: string;
-  message: string;
-  details?: Record<string, string[]>;
-}
+// --- Auth / erros ---
+export type AuthTokenResponse = Json<paths['/auth/token']['post']['responses']['200']>;
+export type ApiErrorBody = Json<paths['/auth/token']['post']['responses']['400']>;
