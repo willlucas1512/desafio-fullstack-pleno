@@ -8,6 +8,8 @@ import { ChildrenFilters } from '@/components/children/children-filters';
 import { ChildrenPagination } from '@/components/children/children-pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useChildren } from '@/hooks/use-children';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { alertsByArea } from '@/lib/child-status';
 import type { AlertFilter, ChildrenListParams, OrderBy } from '@/lib/types';
 
 const PAGE_SIZE = 10;
@@ -48,24 +50,14 @@ export function ChildrenListView() {
   const search = useSearchParams();
   const urlParams = useMemo(() => parseParams(search), [search]);
 
-  // estado local pro filtro com debounce (busca por nome)
+  // rascunho local dos filtros (mantém os inputs controlados); a URL é a fonte de verdade
   const [draft, setDraft] = useState(urlParams);
+  const debouncedNome = useDebouncedValue(draft.nome, 300);
 
+  // re-sincroniza quando a URL muda por fora (voltar/avançar, links pré-filtrados)
   useEffect(() => {
     setDraft(urlParams);
   }, [urlParams]);
-
-  // debounce só na busca por nome (300ms)
-  useEffect(() => {
-    if (draft.nome === urlParams.nome) return;
-    const timer = setTimeout(() => {
-      router.replace(`/children${paramsToQuery(draft)}`, { scroll: false });
-    }, 300);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft.nome]);
-
-  const { data, isLoading, isFetching, isError, refetch } = useChildren(urlParams);
 
   const updateParams = useCallback(
     (next: ChildrenListParams) => {
@@ -75,20 +67,28 @@ export function ChildrenListView() {
     [router],
   );
 
+  // busca por nome: só vai pra URL depois que o usuário para de digitar (300ms)
+  useEffect(() => {
+    if (debouncedNome === urlParams.nome) return;
+    router.replace(`/children${paramsToQuery({ ...draft, nome: debouncedNome })}`, {
+      scroll: false,
+    });
+  }, [debouncedNome, urlParams.nome, draft, router]);
+
+  const { data, isLoading, isFetching, isError, refetch } = useChildren(urlParams);
+
   const handleFilterChange = useCallback(
     (next: ChildrenListParams) => {
-      // se mudou só o nome, deixa o debounce decidir
-      if (
+      // mudou só o nome -> atualiza o rascunho e deixa o debounce empurrar pra URL;
+      // qualquer outro filtro (ou combinação) aplica na hora
+      const onlyNomeChanged =
         next.nome !== draft.nome &&
         next.bairro === draft.bairro &&
         next.alertas === draft.alertas &&
         next.revisado === draft.revisado &&
-        next.orderBy === draft.orderBy
-      ) {
-        setDraft(next);
-        return;
-      }
-      updateParams(next);
+        next.orderBy === draft.orderBy;
+      if (onlyNomeChanged) setDraft(next);
+      else updateParams(next);
     },
     [draft, updateParams],
   );
@@ -107,28 +107,29 @@ export function ChildrenListView() {
     let critical = 0;
     let withAlerts = 0;
     for (const c of data.items) {
-      const areasWithAlerts =
-        (c.saude && c.saude.alertas.length > 0 ? 1 : 0) +
-        (c.educacao && c.educacao.alertas.length > 0 ? 1 : 0) +
-        (c.assistencia_social && c.assistencia_social.alertas.length > 0 ? 1 : 0);
-      if (areasWithAlerts === 3) critical++;
-      if (areasWithAlerts > 0) withAlerts++;
+      const areas = alertsByArea(c).length;
+      if (areas === 3) critical++;
+      if (areas > 0) withAlerts++;
     }
     return { critical, withAlerts };
   }, [data]);
 
   return (
     <div className="space-y-5">
-      <header className="space-y-2">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-            {typeof total === 'number'
-              ? `${total} ${total === 1 ? 'criança' : 'crianças'} em acompanhamento`
-              : 'Crianças em acompanhamento'}
-          </h1>
+      <header className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+              {typeof total === 'number'
+                ? `${total} ${total === 1 ? 'criança' : 'crianças'} em acompanhamento`
+                : 'Crianças em acompanhamento'}
+            </h1>
+            {/* régua ciano — assinatura visual do prefeitura.rio */}
+            <span aria-hidden="true" className="mt-2.5 block h-1 w-16 rounded-full bg-brand" />
+          </div>
           {isFetching && (
             <span
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground sm:mt-1"
               aria-live="polite"
             >
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />

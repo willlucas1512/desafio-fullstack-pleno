@@ -45,7 +45,7 @@ export function ChildrenFilters({ value, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 rounded-lg border bg-card p-3 shadow-sm sm:p-4">
       {/* linha 1: busca + sort */}
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
@@ -124,10 +124,10 @@ export function ChildrenFilters({ value, onChange }: Props) {
           }
         >
           <SelectTrigger aria-label="Filtrar por presença de alertas">
-            <SelectValue placeholder="Qualquer status de alerta" />
+            <SelectValue placeholder="Todos os status de alerta" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ANY}>Qualquer status de alerta</SelectItem>
+            <SelectItem value={ANY}>Todos os status de alerta</SelectItem>
             {ALERT_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
@@ -141,10 +141,10 @@ export function ChildrenFilters({ value, onChange }: Props) {
           onValueChange={(v) => update({ revisado: v === ANY ? undefined : v === 'true' })}
         >
           <SelectTrigger aria-label="Filtrar por status de revisão">
-            <SelectValue placeholder="Qualquer status de revisão" />
+            <SelectValue placeholder="Todos os status de revisão" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ANY}>Qualquer status de revisão</SelectItem>
+            <SelectItem value={ANY}>Todos os status de revisão</SelectItem>
             <SelectItem value="false">Não revisados</SelectItem>
             <SelectItem value="true">Já revisados</SelectItem>
           </SelectContent>
