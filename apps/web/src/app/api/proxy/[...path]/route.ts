@@ -2,6 +2,16 @@ import { cookies } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
 import { API_URL, SESSION_COOKIE } from '@/lib/server/api-config';
 
+// Allow-list de prefixos que o BFF aceita encaminhar. A API valida autorização
+// de novo em cada chamada, mas restringir aqui evita que o proxy vire um
+// reverse-proxy genérico pra qualquer rota da API (ex.: /docs, /auth).
+const ALLOWED_PREFIXES = ['children', 'summary'];
+
+function isAllowed(path: string[]): boolean {
+  const head = path[0];
+  return head !== undefined && ALLOWED_PREFIXES.includes(head);
+}
+
 /**
  * Proxy do BFF pras chamadas de dados. O cliente fala same-origin com
  * `/api/proxy/*`; aqui anexamos o JWT do cookie httpOnly como `Bearer` e
@@ -14,6 +24,14 @@ async function handler(
   { params }: { params: Promise<{ path: string[] }> },
 ): Promise<NextResponse> {
   const { path } = await params;
+
+  if (!isAllowed(path)) {
+    return NextResponse.json(
+      { statusCode: 404, error: 'Not Found', message: 'Rota não encontrada' },
+      { status: 404 },
+    );
+  }
+
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
 
   if (!token) {

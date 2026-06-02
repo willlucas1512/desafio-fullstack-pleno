@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { decodeJwt } from '@/lib/auth/jwt';
+import { decodeJwt, toSessionUser } from '@/lib/auth/jwt';
 import { API_URL, SESSION_COOKIE, sessionCookieOptions } from '@/lib/server/api-config';
 
 /**
@@ -32,6 +32,6 @@ export async function POST(request: Request): Promise<NextResponse> {
   jar.set(SESSION_COOKIE, data.access_token, sessionCookieOptions(payload?.exp));
 
   return NextResponse.json({
-    user: payload ? { preferred_username: payload.preferred_username, exp: payload.exp } : null,
+    user: payload ? toSessionUser(payload) : null,
   });
 }

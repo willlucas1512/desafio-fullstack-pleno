@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { decodeJwt, isExpired } from '@/lib/auth/jwt';
+import { readSession } from '@/lib/auth/jwt';
 import { SESSION_COOKIE } from '@/lib/server/api-config';
 
 const PROTECTED_PREFIXES = ['/dashboard', '/children'];
@@ -13,9 +13,7 @@ const PROTECTED_PREFIXES = ['/dashboard', '/children'];
  */
 export function middleware(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const payload = token ? decodeJwt(token) : null;
-  const authenticated = payload !== null && !isExpired(payload);
+  const authenticated = readSession(request.cookies.get(SESSION_COOKIE)?.value) !== null;
 
   const isProtected = PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
