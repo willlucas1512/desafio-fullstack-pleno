@@ -1,22 +1,16 @@
-import type { AlertArea, EducationAlert, HealthAlert, SocialAlert } from './types';
-
-export const ALERT_LABEL: Record<HealthAlert | EducationAlert | SocialAlert, string> = {
-  // saúde
-  vacinas_atrasadas: 'Vacinas atrasadas',
-  consulta_atrasada: 'Consulta atrasada',
-  // educação
-  frequencia_baixa: 'Frequência baixa',
-  matricula_pendente: 'Matrícula pendente',
-  // assistência social
-  cadastro_ausente: 'CadÚnico ausente',
-  cadastro_desatualizado: 'CadÚnico desatualizado',
-  beneficio_suspenso: 'Benefício suspenso',
-};
+import type { AlertArea } from './types';
 
 export const AREA_LABEL: Record<AlertArea, string> = {
   saude: 'Saúde',
   educacao: 'Educação',
   assistencia_social: 'Assistência social',
+};
+
+/** Rótulo curto, para espaços estreitos (chips, linhas da lista). */
+export const AREA_SHORT_LABEL: Record<AlertArea, string> = {
+  saude: 'Saúde',
+  educacao: 'Educação',
+  assistencia_social: 'Assistência',
 };
 
 export function formatDateBR(iso: string | null | undefined): string {
@@ -60,11 +54,11 @@ export function timeAgo(iso: string | null | undefined, now: Date = new Date()):
   if (diffDays < 0) return 'em breve';
   if (diffDays === 0) return 'hoje';
   if (diffDays === 1) return 'ontem';
-  if (diffDays < 30) return `há ${diffDays}d`;
+  if (diffDays < 30) return `há ${diffDays} dias`;
   const months = Math.floor(diffDays / 30);
-  if (months < 12) return `há ${months}mês`;
+  if (months < 12) return `há ${months} ${months === 1 ? 'mês' : 'meses'}`;
   const years = Math.floor(months / 12);
-  return `há ${years}a`;
+  return `há ${years} ${years === 1 ? 'ano' : 'anos'}`;
 }
 
 export function initials(name: string): string {
@@ -72,16 +66,4 @@ export function initials(name: string): string {
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
-
-const BAIRRO_COLORS: Record<string, string> = {
-  Rocinha: 'bg-amber-500 text-white',
-  Maré: 'bg-sky-600 text-white',
-  Jacarezinho: 'bg-emerald-600 text-white',
-  'Complexo do Alemão': 'bg-rose-600 text-white',
-  Mangueira: 'bg-violet-600 text-white',
-};
-
-export function bairroAvatarClass(bairro: string): string {
-  return BAIRRO_COLORS[bairro] ?? 'bg-slate-600 text-white';
 }

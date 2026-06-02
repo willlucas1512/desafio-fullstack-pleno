@@ -1,64 +1,58 @@
-import { GraduationCap, School, TrendingDown } from 'lucide-react';
-import { AlertBadge } from '@/components/status/alert-badge';
+import { AlertTriangle, CalendarCheck, GraduationCap, School } from 'lucide-react';
 import { EmptyArea } from '@/components/status/empty-area';
+import { resolveFieldStatus } from '@/lib/field-status';
 import type { EducationInfo } from '@/lib/types';
-import { AreaCardShell } from './area-card-shell';
+import { AreaCardShell, AreaField, AreaFields, AreaMeter } from './area-card-shell';
 
 const FREQUENCIA_MINIMA = 75;
 
 export function EducationCard({ data }: { data: EducationInfo | null }) {
   if (!data) return <EmptyArea area="educacao" />;
-  const baixaFrequencia =
+
+  const matricula = resolveFieldStatus(
+    data.alertas,
+    [{ code: 'matricula_pendente', label: 'Matrícula pendente' }],
+    { tone: 'neutral', label: '' },
+  );
+
+  // A frequência abaixo do mínimo é um problema visível mesmo quando o seed não
+  // trouxe o alerta `frequencia_baixa` — o cabeçalho acompanha o medidor.
+  const frequenciaBaixa =
     data.frequencia_percent !== null && data.frequencia_percent < FREQUENCIA_MINIMA;
 
   return (
     <AreaCardShell
       title="Educação"
       icon={GraduationCap}
-      iconColor="text-blue-500"
-      state={data.alertas.length > 0 ? 'alert' : 'ok'}
+      state={data.alertas.length > 0 || frequenciaBaixa ? 'alert' : 'ok'}
     >
-      <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div>
-          <dt className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            <School className="h-3 w-3" aria-hidden="true" />
-            Escola
-          </dt>
-          <dd className="mt-0.5 font-medium">
-            {data.escola ?? <span className="italic text-muted-foreground">Não informada</span>}
-          </dd>
-        </div>
-        <div>
-          <dt className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            <TrendingDown className="h-3 w-3" aria-hidden="true" />
-            Frequência
-          </dt>
-          <dd className="mt-0.5 font-medium">
-            {data.frequencia_percent === null ? (
-              <span className="italic text-muted-foreground">—</span>
-            ) : (
-              <>
-                <span className={baixaFrequencia ? 'text-destructive' : 'text-foreground'}>
-                  {data.frequencia_percent}%
-                </span>
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  (mín. {FREQUENCIA_MINIMA}%)
-                </span>
-              </>
+      <AreaFields>
+        <AreaField label="Escola" icon={School}>
+          <span className="inline-flex flex-col items-start">
+            <span>
+              {data.escola ?? <span className="italic text-muted-foreground">Não informada</span>}
+            </span>
+            {matricula.tone === 'bad' && (
+              <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-normal text-destructive">
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                {matricula.label}
+              </span>
             )}
-          </dd>
-        </div>
-      </dl>
-      {data.alertas.length > 0 && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-muted-foreground">Alertas</p>
-          <div className="flex flex-wrap gap-1.5">
-            {data.alertas.map((a) => (
-              <AlertBadge key={a} code={a} />
-            ))}
-          </div>
-        </div>
-      )}
+          </span>
+        </AreaField>
+        {data.frequencia_percent === null ? (
+          <AreaField label="Frequência" icon={CalendarCheck}>
+            <span className="italic text-muted-foreground">—</span>
+          </AreaField>
+        ) : (
+          <AreaMeter
+            label="Frequência"
+            value={data.frequencia_percent}
+            min={FREQUENCIA_MINIMA}
+            icon={CalendarCheck}
+          />
+        )}
+      </AreaFields>
     </AreaCardShell>
   );
 }
