@@ -9,13 +9,13 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <main className="grid min-h-screen lg:grid-cols-2">
+    <main className="grid min-h-screen xl:grid-cols-2">
       {/* Brand pane (desktop) */}
-      <aside className="relative hidden overflow-hidden bg-primary text-primary-foreground lg:flex lg:flex-col lg:justify-between lg:p-12">
+      <aside className="relative hidden overflow-hidden bg-primary text-primary-foreground xl:flex xl:flex-col xl:p-12">
         {/* decoração de fundo */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-32 -right-32 h-[28rem] w-[28rem] rounded-full bg-white/5"
+          className="pointer-events-none absolute -top-32 -right-32 h-[28rem] w-[28rem] rounded-full bg-white/5"
         />
         <div
           aria-hidden="true"
@@ -25,56 +25,86 @@ export default function LoginPage() {
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/30 to-transparent"
         />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 -bottom-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pao-de-acucar.png" alt="" className="w-full opacity-20 brightness-0 invert" />
+        </div>
 
-        <div className="relative">
+        <div className="relative flex items-center gap-3">
           <Image
             src="/pcrj-logo.svg"
             alt="Prefeitura da Cidade do Rio de Janeiro"
             width={220}
             height={110}
             priority
-            className="h-auto w-44 brightness-0 invert"
+            className="h-auto w-40 brightness-0 invert"
           />
+          <span className="flex flex-col border-l border-primary-foreground/25 pl-3 leading-tight">
+            <span className="text-xl font-bold tracking-tight">Painel Social</span>
+            <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-primary-foreground/70">
+              Acompanhamento
+            </span>
+          </span>
         </div>
 
-        <div className="relative max-w-md space-y-6">
+        <div className="relative flex max-w-md flex-1 flex-col justify-center space-y-6">
           <p className="text-sm font-semibold uppercase tracking-widest text-primary-foreground/70">
-            Acompanhamento social
+            Proteção à infância
           </p>
           <p className="text-3xl font-semibold leading-tight md:text-4xl">
-            Identifique alertas e priorize quem precisa de atenção agora.
+            Painel de Acompanhamento Infantil
           </p>
           <p className="text-base leading-relaxed text-primary-foreground/80">
-            Painel que cruza dados de saúde, educação e assistência social das crianças
-            acompanhadas pela Prefeitura. Pensado para ser usado em campo, no celular ou
-            num computador simples.
+            Crianças em situação de vulnerabilidade, com dados de saúde, educação e
+            assistência social.
           </p>
         </div>
-
-        <p className="relative text-xs text-primary-foreground/60">
-          © {new Date().getFullYear()} Prefeitura da Cidade do Rio de Janeiro
-        </p>
       </aside>
 
       {/* Form pane */}
-      <section className="flex flex-col bg-background">
+      <section className="relative isolate flex flex-col overflow-hidden bg-background bg-[url('/bg-servicos.png')] bg-repeat dark:bg-none">
         {/* header mobile com mini-logo */}
-        <header className="border-b bg-primary px-4 py-4 lg:hidden">
+        <header className="flex items-center gap-2.5 border-b bg-primary px-6 py-4 text-primary-foreground sm:px-10 xl:hidden">
           <Image
             src="/pcrj-logo.svg"
             alt="Prefeitura da Cidade do Rio de Janeiro"
-            width={130}
-            height={65}
+            width={96}
+            height={48}
             priority
-            className="h-9 w-auto brightness-0 invert"
+            className="h-8 w-auto brightness-0 invert"
           />
+          <span className="flex flex-col border-l border-primary-foreground/25 pl-2.5 leading-tight">
+            <span className="text-sm font-bold tracking-tight">Painel Social</span>
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary-foreground/70">
+              Acompanhamento
+            </span>
+          </span>
         </header>
 
-        <div className="flex flex-1 items-center justify-center p-6 sm:p-10">
+        {/* skyline decorativo (mobile) */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 xl:hidden"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/pao-de-acucar.png"
+            alt=""
+            className="block w-full translate-y-[6.6%] opacity-[0.08] brightness-0"
+          />
+        </div>
+
+        <div className="flex items-start justify-center p-6 pt-10 sm:p-10 xl:flex-1 xl:items-center">
           <Suspense fallback={null}>
             <LoginForm />
           </Suspense>
         </div>
+
+        <footer className="px-6 pb-6 sm:px-10">
+          <p className="mx-auto w-full max-w-sm text-center text-xs text-muted-foreground">
+            © {new Date().getFullYear()} Prefeitura da Cidade do Rio de Janeiro
+          </p>
+        </footer>
       </section>
     </main>
   );

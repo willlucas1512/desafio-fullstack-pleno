@@ -67,6 +67,10 @@ services:
         # URL que o browser usa pra chamar a API (porta do host, nao o
         # nome do servico do compose). Em prod, sobrescreva no .env.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+        # credenciais de demo exibidas no login; reaproveitam as do tecnico
+        # pra sempre baterem com o que a API aceita. Em prod, deixe em branco.
+        NEXT_PUBLIC_DEMO_EMAIL: ${TECHNICIAN_EMAIL:-tecnico@prefeitura.rio}
+        NEXT_PUBLIC_DEMO_PASSWORD: ${TECHNICIAN_PASSWORD:-}
     environment:
       NODE_ENV: production
       PORT: 3000

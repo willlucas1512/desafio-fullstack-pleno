@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import axios from 'axios';
 import { AlertCircle, Eye, EyeOff, KeyRound, Loader2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -17,7 +18,19 @@ const schema = z.object({
   password: z.string().min(1, 'A senha é obrigatória'),
 });
 
+// Aceita apenas paths internos ("/algo"). Rejeita URLs absolutas e "//host"
+// (protocol-relative), que permitiriam redirecionar para fora do app.
+function safeNext(raw: string | null): string {
+  if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw;
+  return '/dashboard';
+}
+
 type FormValues = z.infer<typeof schema>;
+
+// Credenciais de demonstração: exibidas apenas quando definidas via ambiente
+// (ver .env.example). Nunca ficam hardcoded no código.
+const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL;
+const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
 
 export function LoginForm() {
   const router = useRouter();
@@ -26,7 +39,8 @@ export function LoginForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const next = searchParams.get('next') ?? '/dashboard';
+  // só aceita caminho interno relativo; bloqueia open redirect (ex.: //evil.com, https://evil.com)
+  const next = safeNext(searchParams.get('next'));
   const expired = searchParams.get('reason') === 'expired';
 
   const {
@@ -50,7 +64,7 @@ export function LoginForm() {
       router.replace(next);
     } catch (err) {
       const message =
-        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+        (axios.isAxiosError(err) ? err.response?.data?.message : undefined) ??
         'Não foi possível entrar. Verifique e-mail e senha.';
       setSubmitError(message);
     }
@@ -70,7 +84,7 @@ export function LoginForm() {
       {expired && (
         <div
           role="alert"
-          className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning-foreground"
+          className="flex items-start gap-2 rounded-md border border-warning/40 bg-[color-mix(in_srgb,hsl(var(--warning))_12%,hsl(var(--card)))] p-3 text-sm text-warning-foreground dark:text-warning"
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <p>Sua sessão expirou. Faça login novamente para continuar.</p>
@@ -152,7 +166,7 @@ export function LoginForm() {
         {submitError && (
           <div
             role="alert"
-            className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+            className="rounded-md border border-destructive/40 bg-[color-mix(in_srgb,hsl(var(--destructive))_12%,hsl(var(--card)))] p-3 text-sm text-destructive"
           >
             {submitError}
           </div>
@@ -168,12 +182,14 @@ export function LoginForm() {
         </Button>
       </form>
 
-      <div className="rounded-md border border-dashed border-muted-foreground/30 bg-muted/40 p-3 text-xs">
-        <p className="font-medium text-foreground">Credenciais de teste</p>
-        <p className="mt-1 font-mono text-muted-foreground">
-          tecnico@prefeitura.rio / painel@2024
-        </p>
-      </div>
+      {demoEmail && demoPassword && (
+        <div className="rounded-md border border-dashed border-muted-foreground/30 bg-muted/40 p-3 text-xs">
+          <p className="font-medium text-foreground">Credenciais de teste</p>
+          <p className="mt-1 font-mono text-muted-foreground">
+            {demoEmail} / {demoPassword}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

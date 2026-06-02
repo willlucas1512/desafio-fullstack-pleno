@@ -14,6 +14,12 @@ COPY package.json package-lock.json ./
 COPY apps/web ./apps/web
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Credenciais de demo no login: embutidas no build. Vazias por padrão (o box
+# some); o compose injeta os valores do enunciado para o zero-config.
+ARG NEXT_PUBLIC_DEMO_EMAIL=
+ENV NEXT_PUBLIC_DEMO_EMAIL=$NEXT_PUBLIC_DEMO_EMAIL
+ARG NEXT_PUBLIC_DEMO_PASSWORD=
+ENV NEXT_PUBLIC_DEMO_PASSWORD=$NEXT_PUBLIC_DEMO_PASSWORD
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build --workspace=apps/web
 
