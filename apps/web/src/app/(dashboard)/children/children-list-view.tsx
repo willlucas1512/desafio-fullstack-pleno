@@ -1,28 +1,42 @@
-'use client';
+"use client";
 
-import { Inbox, Loader2 } from 'lucide-react';
-import { useMemo } from 'react';
-import { ChildRow } from '@/components/children/child-row';
-import { ChildrenFilters } from '@/components/children/children-filters';
-import { ChildrenPagination } from '@/components/children/children-pagination';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useChildren } from '@/hooks/use-children';
-import { useChildrenFilters } from '@/hooks/use-children-filters';
+import { Inbox, Loader2 } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { ChildRow } from "@/components/children/child-row";
+import { ChildrenFilters } from "@/components/children/children-filters";
+import { ChildrenPagination } from "@/components/children/children-pagination";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useChildren } from "@/hooks/use-children";
+import { useChildrenFilters } from "@/hooks/use-children-filters";
 
 export function ChildrenListView() {
   const { params, draft, onFilterChange, onPageChange } = useChildrenFilters();
   const { data, isLoading, isFetching, isError, refetch } = useChildren(params);
 
+  const totalPages = data?.pagination.totalPages;
+  useEffect(() => {
+    if (totalPages && params.page && params.page > totalPages) {
+      onPageChange(totalPages);
+    }
+  }, [totalPages, params.page, onPageChange]);
+
   const total = data?.pagination.total;
-  const from = data ? (data.pagination.page - 1) * data.pagination.pageSize + 1 : 0;
-  const to = data ? Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.total) : 0;
+  const from = data
+    ? (data.pagination.page - 1) * data.pagination.pageSize + 1
+    : 0;
+  const to = data
+    ? Math.min(
+        data.pagination.page * data.pagination.pageSize,
+        data.pagination.total,
+      )
+    : 0;
 
   const pageStats = useMemo(() => {
     if (!data) return null;
     let critical = 0;
     let withAlerts = 0;
     for (const c of data.items) {
-      if (c.prioridade === 'critico') critical++;
+      if (c.prioridade === "critico") critical++;
       if (c.total_alertas > 0) withAlerts++;
     }
     return { critical, withAlerts };
@@ -34,39 +48,46 @@ export function ChildrenListView() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-              {typeof total === 'number'
-                ? `${total} ${total === 1 ? 'criança' : 'crianças'} em acompanhamento`
-                : 'Crianças em acompanhamento'}
+              {typeof total === "number"
+                ? `${total} ${total === 1 ? "criança" : "crianças"} em acompanhamento`
+                : "Crianças em acompanhamento"}
             </h1>
-            {/* régua ciano — assinatura visual do prefeitura.rio */}
-            <span aria-hidden="true" className="mt-2.5 block h-1 w-16 rounded-full bg-brand" />
+            <span
+              aria-hidden="true"
+              className="mt-2.5 block h-1 w-16 rounded-full bg-brand"
+            />
           </div>
           {isFetching && (
             <span
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground sm:mt-1"
               aria-live="polite"
             >
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              <Loader2
+                className="h-3.5 w-3.5 animate-spin"
+                aria-hidden="true"
+              />
               Atualizando…
             </span>
           )}
         </div>
         {data && pageStats ? (
           <p className="text-sm text-muted-foreground" aria-live="polite">
-            Mostrando <strong className="font-semibold text-foreground">{from}</strong>
-            {'–'}
+            Mostrando{" "}
+            <strong className="font-semibold text-foreground">{from}</strong>
+            {"–"}
             <strong className="font-semibold text-foreground">{to}</strong>
             {pageStats.critical > 0 && (
               <>
-                {' · '}
+                {" · "}
                 <strong className="font-semibold text-destructive">
-                  {pageStats.critical} {pageStats.critical === 1 ? 'crítico' : 'críticos'}
+                  {pageStats.critical}{" "}
+                  {pageStats.critical === 1 ? "crítico" : "críticos"}
                 </strong>
               </>
             )}
             {pageStats.withAlerts > 0 && (
               <>
-                {' · '}
+                {" · "}
                 <strong className="font-semibold text-warning">
                   {pageStats.withAlerts} com alertas
                 </strong>
@@ -110,7 +131,10 @@ export function ChildrenListView() {
           </ul>
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/20 p-12 text-center">
-            <Inbox className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+            <Inbox
+              className="h-8 w-8 text-muted-foreground"
+              aria-hidden="true"
+            />
             <p className="text-sm font-medium">Nenhuma criança encontrada</p>
             <p className="text-sm text-muted-foreground">
               Ajuste os filtros para ampliar a busca.
@@ -120,7 +144,10 @@ export function ChildrenListView() {
       </div>
 
       {data && (
-        <ChildrenPagination pagination={data.pagination} onChange={onPageChange} />
+        <ChildrenPagination
+          pagination={data.pagination}
+          onChange={onPageChange}
+        />
       )}
     </div>
   );
