@@ -8,6 +8,11 @@ import type {
   OrderBy,
 } from '../domain/child-query.js';
 import { childArraySchema, childSchema, type Child } from '../domain/child.js';
+import {
+  reviewAuditEntrySchema,
+  type ReviewAction,
+  type ReviewAuditEntry,
+} from '../domain/review-audit.js';
 import { summarySchema, type Summary } from '../domain/summary.js';
 import type { ChildrenStore } from './children-store.js';
 import { runMigrations } from './migrations.js';
@@ -92,10 +97,10 @@ interface BairroRow {
  * linhas passam por `childSchema.parse` — sem full-scan nem N validações por
  * chamada. `summary` vira COUNTs agregados; `listNeighborhoods`, um DISTINCT.
  *
- * As funções de domínio (`queryChildren`, `aggregate`, `listNeighborhoods`)
- * permanecem como especificação executável: o {@link FakeChildrenStore} as usa
- * nos testes e o teste de integração compara o resultado do SQL contra elas
- * sobre o seed, garantindo que as duas implementações concordam.
+ * Este SQL é a ÚNICA implementação de produção das regras de listagem/agregação.
+ * O {@link FakeChildrenStore} mantém uma referência in-memory equivalente usada
+ * nos testes; o teste de integração (Testcontainers) compara o resultado deste
+ * SQL contra o fake sobre o seed, garantindo que as duas concordam.
  */
 export class PostgresChildrenRepository implements ChildrenStore {
   private constructor(
@@ -257,29 +262,69 @@ export class PostgresChildrenRepository implements ChildrenStore {
   }
 
   markReviewed(id: string, reviewedBy: string): Promise<Child | null> {
-    return this.update(id, (child) => ({
-      ...child,
-      revisado: true,
-      revisado_por: reviewedBy,
-      revisado_em: new Date().toISOString(),
-    }));
+    return this.transitionReview(id, {
+      alreadyInState: (child) => child.revisado,
+      next: (child) => ({
+        ...child,
+        revisado: true,
+        revisado_por: reviewedBy,
+        revisado_em: new Date().toISOString(),
+      }),
+      action: 'revisado',
+      reviewer: reviewedBy,
+    });
   }
 
   unmarkReviewed(id: string): Promise<Child | null> {
-    return this.update(id, (child) => ({
-      ...child,
-      revisado: false,
-      revisado_por: null,
-      revisado_em: null,
-    }));
+    return this.transitionReview(id, {
+      alreadyInState: (child) => !child.revisado,
+      next: (child) => ({
+        ...child,
+        revisado: false,
+        revisado_por: null,
+        revisado_em: null,
+      }),
+      action: 'revisao_desfeita',
+      reviewer: null,
+    });
+  }
+
+  async reviewHistory(id: string): Promise<ReviewAuditEntry[]> {
+    const { rows } = await this.pool.query<{
+      action: ReviewAction;
+      reviewer: string | null;
+      created_at: Date;
+    }>(
+      `SELECT action, reviewer, created_at FROM review_audit
+       WHERE child_id = $1
+       ORDER BY created_at DESC, id DESC`,
+      [id],
+    );
+    return rows.map((r) =>
+      reviewAuditEntrySchema.parse({
+        action: r.action,
+        reviewer: r.reviewer,
+        timestamp: r.created_at.toISOString(),
+      }),
+    );
   }
 
   /**
-   * Read-modify-write de um documento, em transação com `FOR UPDATE` pra
-   * serializar mutações concorrentes na mesma criança. Como o registro é um
-   * único JSONB, qualquer mutação de campo passa por aqui.
+   * Transição de revisão idempotente e auditada, em transação com `FOR UPDATE`
+   * pra serializar mutações concorrentes na mesma criança. Quando o caso já está
+   * no estado-alvo (`alreadyInState`), é no-op: não reescreve o documento nem
+   * adiciona linha na trilha. Caso contrário, grava o novo documento e a entrada
+   * de auditoria na MESMA transação, então estado e histórico nunca divergem.
    */
-  private async update(id: string, mutate: (child: Child) => Child): Promise<Child | null> {
+  private async transitionReview(
+    id: string,
+    op: {
+      alreadyInState: (child: Child) => boolean;
+      next: (child: Child) => Child;
+      action: ReviewAction;
+      reviewer: string | null;
+    },
+  ): Promise<Child | null> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -291,11 +336,20 @@ export class PostgresChildrenRepository implements ChildrenStore {
         await client.query('ROLLBACK');
         return null;
       }
-      const next = mutate(childSchema.parse(rows[0].data));
+      const current = childSchema.parse(rows[0].data);
+      if (op.alreadyInState(current)) {
+        await client.query('COMMIT');
+        return current;
+      }
+      const next = op.next(current);
       await client.query('UPDATE children SET data = $2::jsonb WHERE id = $1', [
         id,
         JSON.stringify(next),
       ]);
+      await client.query(
+        'INSERT INTO review_audit (child_id, action, reviewer) VALUES ($1, $2, $3)',
+        [id, op.action, op.reviewer],
+      );
       await client.query('COMMIT');
       return next;
     } catch (err) {

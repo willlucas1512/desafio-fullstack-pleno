@@ -18,11 +18,10 @@ export const migrations: Migration[] = [
     // canônica do registro. A projeção consultável (colunas geradas + índices)
     // vem na migration 004, derivada deste mesmo documento.
     //
-    // O DROP cobre quem tinha o esquema antigo (colunas por campo) num volume
-    // remanescente; os dados vêm do seed canônico, então recriar é seguro.
+    // `IF NOT EXISTS` (sem DROP): a migration é versionada e roda uma única vez,
+    // então nunca descarta dados de revisão já persistidos num volume existente.
     sql: `
-      DROP TABLE IF EXISTS children;
-      CREATE TABLE children (
+      CREATE TABLE IF NOT EXISTS children (
         seq  SERIAL,
         id   TEXT PRIMARY KEY,
         data JSONB NOT NULL
@@ -77,6 +76,23 @@ export const migrations: Migration[] = [
       CREATE INDEX children_bairro_idx  ON children (bairro_norm COLLATE "C", nome_norm COLLATE "C", id COLLATE "C");
       CREATE INDEX children_idade_idx   ON children (data_nascimento COLLATE "C" DESC, id COLLATE "C");
       CREATE INDEX children_revisao_idx ON children (revisado, COALESCE(revisado_em, '') COLLATE "C", id COLLATE "C");
+    `,
+  },
+  {
+    version: '005_review_audit',
+    // Trilha de auditoria append-only das revisões. O documento da criança
+    // guarda só o ESTADO ATUAL; aqui fica o HISTÓRICO: cada transição de revisão
+    // (marcar/desfazer) vira uma linha imutável com autor e timestamp. Gravada na
+    // mesma transação da mutação do documento, então estado e trilha não divergem.
+    sql: `
+      CREATE TABLE IF NOT EXISTS review_audit (
+        id         BIGSERIAL PRIMARY KEY,
+        child_id   TEXT        NOT NULL REFERENCES children(id),
+        action     TEXT        NOT NULL CHECK (action IN ('revisado', 'revisao_desfeita')),
+        reviewer   TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX review_audit_child_idx ON review_audit (child_id, created_at DESC, id DESC);
     `,
   },
 ];

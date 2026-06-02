@@ -134,6 +134,38 @@ describe('HTTP routes', () => {
     });
   });
 
+  describe('POST /auth/refresh', () => {
+    it('returns 401 without token', async () => {
+      const res = await app.inject({ method: 'POST', url: '/auth/refresh' });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('returns 401 for a malformed/invalid token', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/auth/refresh',
+        headers: { authorization: 'Bearer not.a.jwt' },
+      });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('reissues a JWT for the same technician on a valid token', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/auth/refresh',
+        headers: authHeaders,
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.token_type).toBe('Bearer');
+      expect(body).toHaveProperty('access_token');
+
+      const [, payloadB64] = (body.access_token as string).split('.') as [string, string];
+      const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf-8'));
+      expect(payload.preferred_username).toBe(testEnv.TECHNICIAN_EMAIL);
+    });
+  });
+
   describe('GET /children', () => {
     it('returns 401 without token', async () => {
       const res = await app.inject({ method: 'GET', url: '/children' });
@@ -238,6 +270,23 @@ describe('HTTP routes', () => {
       expect(body.revisado_em).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     });
 
+    it('is idempotent: re-marking keeps the original revisado_em', async () => {
+      const first = await app.inject({
+        method: 'PATCH',
+        url: '/children/c005/review',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      const firstAt = first.json().revisado_em;
+
+      const second = await app.inject({
+        method: 'PATCH',
+        url: '/children/c005/review',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(second.statusCode).toBe(200);
+      expect(second.json().revisado_em).toBe(firstAt);
+    });
+
     it('returns 404 for unknown id', async () => {
       const res = await app.inject({
         method: 'PATCH',
@@ -245,6 +294,50 @@ describe('HTTP routes', () => {
         headers: { authorization: `Bearer ${token}` },
       });
       expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe('GET /children/:id/review-history', () => {
+    let token: string;
+    beforeAll(async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/auth/token',
+        payload: { email: testEnv.TECHNICIAN_EMAIL, password: testEnv.TECHNICIAN_PASSWORD },
+      });
+      token = res.json().access_token;
+    });
+
+    it('returns 401 without token', async () => {
+      const res = await app.inject({ method: 'GET', url: '/children/c001/review-history' });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('returns 404 for unknown id', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/children/nope/review-history',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('records an append-only trail of review transitions (newest first)', async () => {
+      const auth = { authorization: `Bearer ${token}` };
+      await app.inject({ method: 'PATCH', url: '/children/c001/review', headers: auth });
+      await app.inject({ method: 'DELETE', url: '/children/c001/review', headers: auth });
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/children/c001/review-history',
+        headers: auth,
+      });
+      expect(res.statusCode).toBe(200);
+      const { items } = res.json();
+      expect(items).toHaveLength(2);
+      expect(items[0].action).toBe('revisao_desfeita');
+      expect(items[1].action).toBe('revisado');
+      expect(items[1].reviewer).toBe(testEnv.TECHNICIAN_EMAIL);
     });
   });
 

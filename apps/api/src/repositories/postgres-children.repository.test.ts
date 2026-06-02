@@ -17,12 +17,11 @@ const REQUIRE_DOCKER = process.env.CI === 'true' || process.env.CI === '1';
 
 /**
  * Cobre o caminho de produção (Postgres) com um banco real via Testcontainers.
- * Como filtro/ordenação/agregação são delegados ao domínio (mesma lógica do
- * {@link FakeChildrenStore}, já coberta nos testes de serviço/rota), aqui o foco
- * é I/O: seed idempotente, persistência das mutações e o round-trip de
- * mapeamento (JSONB/timestamp → domínio via `rowToChild`). Para garantir que o
- * caminho real produz o mesmo resultado da definição canônica em memória,
- * comparamos list/summary/neighborhoods contra o fake sobre o seed intacto.
+ * Filtro/ordenação/agregação são implementados em SQL aqui; o {@link FakeChildrenStore}
+ * mantém a referência in-memory equivalente (já coberta nos testes de serviço/rota).
+ * Este arquivo trava a paridade entre as duas: comparamos list/summary/neighborhoods
+ * do SQL contra o fake sobre o seed intacto, além de exercitar o I/O em si (seed
+ * idempotente, persistência das mutações e o round-trip de mapeamento JSONB).
  */
 describe('PostgresChildrenRepository (Testcontainers)', () => {
   let container: StartedPostgreSqlContainer | undefined;
@@ -71,9 +70,9 @@ describe('PostgresChildrenRepository (Testcontainers)', () => {
   // ANTES das mutações, sobre o seed intacto. Isso pega bugs de mapeamento
   // JSONB/timestamp — a lógica de filtro/ordenação em si é coberta à parte.
 
-  // O SQL é uma 2ª implementação das regras de listagem; o domínio
-  // (`queryChildren`, via fake) é a especificação. Esta matriz trava a paridade
-  // entre os dois sobre o seed: toda ordenação, cada filtro e a paginação.
+  // O SQL é a implementação de produção das regras de listagem; o fake in-memory
+  // é a referência equivalente. Esta matriz trava a paridade entre os dois sobre
+  // o seed: toda ordenação, cada filtro e a paginação.
   const listCases: Array<[string, Record<string, unknown>]> = [
     ['orderBy nome', { orderBy: 'nome', pageSize: 100 }],
     ['orderBy bairro', { orderBy: 'bairro', pageSize: 100 }],
@@ -142,6 +141,31 @@ describe('PostgresChildrenRepository (Testcontainers)', () => {
     if (dockerUnavailable) return ctx.skip();
     expect(await repo!.markReviewed('nope', 'tecnico@prefeitura.rio')).toBeNull();
     expect(await repo!.unmarkReviewed('nope')).toBeNull();
+  });
+
+  it('markReviewed é idempotente: re-marcar preserva revisado_em e não duplica a trilha', async (ctx) => {
+    if (dockerUnavailable) return ctx.skip();
+    const id = (await repo!.listAll())[5]!.id;
+
+    const first = await repo!.markReviewed(id, 'tecnico@prefeitura.rio');
+    const again = await repo!.markReviewed(id, 'outro@prefeitura.rio');
+    expect(again?.revisado_em).toBe(first?.revisado_em);
+    expect(again?.revisado_por).toBe('tecnico@prefeitura.rio');
+    expect(await repo!.reviewHistory(id)).toHaveLength(1);
+  });
+
+  it('reviewHistory devolve a trilha append-only (mais recente primeiro)', async (ctx) => {
+    if (dockerUnavailable) return ctx.skip();
+    const id = (await repo!.listAll())[6]!.id;
+
+    await repo!.markReviewed(id, 'tecnico@prefeitura.rio');
+    await repo!.unmarkReviewed(id);
+
+    const history = await repo!.reviewHistory(id);
+    expect(history).toHaveLength(2);
+    expect(history[0]).toMatchObject({ action: 'revisao_desfeita', reviewer: null });
+    expect(history[1]).toMatchObject({ action: 'revisado', reviewer: 'tecnico@prefeitura.rio' });
+    expect(history[0]!.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it('seedIfEmpty é idempotente (um segundo boot não duplica os dados)', async (ctx) => {

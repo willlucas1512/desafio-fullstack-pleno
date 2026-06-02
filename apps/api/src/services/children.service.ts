@@ -2,15 +2,14 @@ import {
   toChildResponse,
   type ChildResponse,
   type ListChildrenResult,
-} from '../domain/child-status.js';
-import type { ListChildrenQuery } from '../domain/child-query.js';
-import type { Summary } from '../domain/summary.js';
-import type { ChildrenStore } from '../repositories/children-store.js';
+} from "../domain/child-status.js";
+import type { ListChildrenQuery } from "../domain/child-query.js";
+import type { ReviewAuditEntry } from "../domain/review-audit.js";
+import type { Summary } from "../domain/summary.js";
+import type { ChildrenStore } from "../repositories/children-store.js";
 
 /**
- * Orquestra a listagem e decora as entidades de domínio com os campos derivados
- * de apresentação (`prioridade`, `total_alertas`) antes de devolver à camada
- * HTTP. A regra de prioridade é única (ver `domain/child-status.ts`).
+ * Orquestra a listagem e decora as entidades com os campos (`prioridade`, `total_alertas`).
  */
 export class ChildrenService {
   constructor(private readonly repo: ChildrenStore) {}
@@ -20,7 +19,12 @@ export class ChildrenService {
     const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
     return {
       items: items.map(toChildResponse),
-      pagination: { page: query.page, pageSize: query.pageSize, total, totalPages },
+      pagination: {
+        page: query.page,
+        pageSize: query.pageSize,
+        total,
+        totalPages,
+      },
     };
   }
 
@@ -33,7 +37,10 @@ export class ChildrenService {
     return child ? toChildResponse(child) : null;
   }
 
-  async markReviewed(id: string, reviewedBy: string): Promise<ChildResponse | null> {
+  async markReviewed(
+    id: string,
+    reviewedBy: string,
+  ): Promise<ChildResponse | null> {
     const child = await this.repo.markReviewed(id, reviewedBy);
     return child ? toChildResponse(child) : null;
   }
@@ -41,6 +48,13 @@ export class ChildrenService {
   async unmarkReviewed(id: string): Promise<ChildResponse | null> {
     const child = await this.repo.unmarkReviewed(id);
     return child ? toChildResponse(child) : null;
+  }
+
+  /** Trilha de auditoria do caso. `null` = criança inexistente (vira 404). */
+  async reviewHistory(id: string): Promise<ReviewAuditEntry[] | null> {
+    const child = await this.repo.findById(id);
+    if (!child) return null;
+    return this.repo.reviewHistory(id);
   }
 
   listNeighborhoods(): Promise<string[]> {

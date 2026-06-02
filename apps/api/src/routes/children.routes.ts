@@ -7,6 +7,7 @@ import {
   listChildrenResultSchema,
   type ChildResponse,
 } from '../domain/child-status.js';
+import { reviewHistorySchema } from '../domain/review-audit.js';
 import type { ChildrenService } from '../services/children.service.js';
 
 const childIdParamSchema = z.object({ id: z.string().min(1) });
@@ -112,6 +113,22 @@ export function createChildrenRoutes({ childrenService }: ChildrenRoutesOptions)
           'revisão desfeita',
         );
         return updated;
+      },
+    );
+
+    app.get<{ Params: ChildIdParam }>(
+      '/children/:id/review-history',
+      {
+        preHandler: [app.authenticate],
+        schema: protectedRoute({
+          summary: 'Trilha de auditoria das revisões do caso (mais recente primeiro)',
+          params: childIdParamSchema,
+          response: { 200: reviewHistorySchema, 401: errorResponseSchema, 404: errorResponseSchema },
+        }),
+      },
+      async (request, reply) => {
+        const items = await childrenService.reviewHistory(request.params.id);
+        return items ? { items } : notFound(reply, request.params.id);
       },
     );
   };
