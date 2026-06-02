@@ -1,4 +1,21 @@
 services:
+  postgres:
+    container_name: painel-db
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - painel-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   api:
     container_name: painel-api
     build:
@@ -10,15 +27,23 @@ services:
       HOST: 0.0.0.0
       LOG_LEVEL: info
       # defaults batem com o enunciado pra `docker compose up` funcionar
-      # sem setup; sobrescreva pelo .env do compose se precisar
-      JWT_SECRET: ${JWT_SECRET:-placeholder-value-used-only-for-local-dev-not-a-real-key}
+      # sem setup; sobrescreva pelo .env do compose se precisar.
+      # JWT_SECRET fica vazio de propósito: o entrypoint do container gera um
+      # segredo aleatório efêmero quando não é fornecido (nunca roda com um
+      # secret público). Defina aqui só se quiser um secret fixo entre restarts.
+      JWT_SECRET: ${JWT_SECRET:-}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       TECHNICIAN_EMAIL: ${TECHNICIAN_EMAIL:-tecnico@prefeitura.rio}
       TECHNICIAN_PASSWORD: ${TECHNICIAN_PASSWORD:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       SEED_FILE: /app/data/seed.json
+      # persiste as revisões no Postgres; aponta pro serviço do compose
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     ports:
       - '${API_HOST_PORT:-3001}:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -64,3 +89,6 @@ services:
       retries: 5
       start_period: 20s
     restart: unless-stopped
+
+volumes:
+  painel-db-data:
