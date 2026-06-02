@@ -49,7 +49,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
-        NEXT_PUBLIC_API_URL: `http://127.0.0.1:${API_PORT}`,
+        API_URL: `http://127.0.0.1:${API_PORT}`,
         E2E_TEST_EMAIL: TEST_EMAIL,
         E2E_TEST_PASS: TEST_PASS,
       },

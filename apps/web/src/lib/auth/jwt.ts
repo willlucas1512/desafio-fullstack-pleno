@@ -9,11 +9,9 @@ export function decodeJwt(token: string): JwtPayload | null {
     if (parts.length !== 3) return null;
     const payloadB64 = parts[1]!.replace(/-/g, '+').replace(/_/g, '/');
     const padded = payloadB64.padEnd(payloadB64.length + ((4 - (payloadB64.length % 4)) % 4), '=');
-    const json =
-      typeof atob === 'function'
-        ? atob(padded)
-        : Buffer.from(padded, 'base64').toString('utf-8');
-    const parsed = JSON.parse(json) as JwtPayload;
+    // atob (não Buffer) pra rodar igual no browser, no Node e no Edge Runtime
+    // (middleware). O payload do JWT é ASCII (email + timestamps).
+    const parsed = JSON.parse(atob(padded)) as JwtPayload;
     if (typeof parsed.preferred_username !== 'string') return null;
     if (typeof parsed.exp !== 'number') return null;
     return parsed;

@@ -1,7 +1,6 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import axios from 'axios';
 import { AlertCircle, Eye, EyeOff, KeyRound, Loader2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -64,8 +63,7 @@ export function LoginForm() {
       router.replace(next);
     } catch (err) {
       const message =
-        (axios.isAxiosError(err) ? err.response?.data?.message : undefined) ??
-        'Não foi possível entrar. Verifique e-mail e senha.';
+        err instanceof Error ? err.message : 'Não foi possível entrar. Verifique e-mail e senha.';
       setSubmitError(message);
     }
   };

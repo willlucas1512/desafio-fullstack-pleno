@@ -12,8 +12,6 @@ WORKDIR /repo
 COPY --from=deps /repo/node_modules ./node_modules
 COPY package.json package-lock.json ./
 COPY apps/web ./apps/web
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 # Credenciais de demo no login: embutidas no build. Vazias por padrão (o box
 # some); o compose injeta os valores do enunciado para o zero-config.
 ARG NEXT_PUBLIC_DEMO_EMAIL=
@@ -30,6 +28,9 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV NEXT_TELEMETRY_DISABLED=1
+# URL da API lida em runtime pelo BFF (Route Handlers + middleware). O compose
+# sobrescreve com o host do serviço da API.
+ENV API_URL=http://localhost:3001
 
 # Standalone output preserves the workspace layout. server.js lives under
 # apps/web/ inside the standalone bundle.

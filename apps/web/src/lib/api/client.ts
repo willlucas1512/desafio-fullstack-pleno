@@ -1,7 +1,9 @@
-import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
-import { authStorage } from '../auth/storage';
+import axios, { type AxiosInstance } from 'axios';
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+// Same-origin: as chamadas passam pelo proxy do BFF (`/api/proxy`), que anexa o
+// JWT do cookie httpOnly no servidor. O browser não vê nem manda o token — o
+// cookie viaja sozinho por ser same-origin.
+const baseURL = '/api/proxy';
 
 export class UnauthorizedError extends Error {
   constructor(message = 'Sessão expirada. Faça login novamente.') {
@@ -17,19 +19,10 @@ export function createApiClient(): AxiosInstance {
     headers: { 'Content-Type': 'application/json' },
   });
 
-  client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-    const token = authStorage.get();
-    if (token) {
-      config.headers.set('Authorization', `Bearer ${token}`);
-    }
-    return config;
-  });
-
   client.interceptors.response.use(
     (response) => response,
     (error: unknown) => {
       if (axios.isAxiosError(error) && error.response?.status === 401) {
-        authStorage.clear();
         if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
           const next = encodeURIComponent(window.location.pathname + window.location.search);
           window.location.href = `/login?next=${next}&reason=expired`;

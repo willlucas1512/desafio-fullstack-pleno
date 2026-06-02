@@ -11,20 +11,24 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { login as loginRequest, type LoginParams } from '@/lib/api/auth';
-import { decodeJwt, isExpired, type JwtPayload } from '@/lib/auth/jwt';
-import { authStorage } from '@/lib/auth/storage';
+import {
+  fetchSession,
+  login as loginRequest,
+  logout as logoutRequest,
+  type LoginParams,
+  type SessionUser,
+} from '@/lib/api/auth';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 export interface AuthState {
   status: AuthStatus;
-  user: JwtPayload | null;
+  user: SessionUser | null;
 }
 
 export interface UseAuthResult extends AuthState {
   login: (params: LoginParams) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<UseAuthResult | null>(null);
@@ -36,6 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [state, setState] = useState<AuthState>({ status: 'loading', user: null });
   const expiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ref pra agendar a re-hidratação sem criar dependência circular entre os callbacks
+  const hydrateRef = useRef<() => void>(() => {});
 
   const clearExpiryTimer = useCallback(() => {
     if (expiryTimer.current) {
@@ -44,55 +50,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const hydrate = useCallback(() => {
-    clearExpiryTimer();
-    const token = authStorage.get();
-    if (!token) {
-      setState({ status: 'unauthenticated', user: null });
-      return;
-    }
-    const payload = decodeJwt(token);
-    if (!payload || isExpired(payload)) {
-      authStorage.clear();
-      setState({ status: 'unauthenticated', user: null });
-      return;
-    }
-    setState({ status: 'authenticated', user: payload });
-    // agenda a transição para "unauthenticated" no exato momento da expiração
-    const msUntilExpiry = payload.exp * 1000 - Date.now();
-    expiryTimer.current = setTimeout(
-      () => hydrate(),
-      Math.min(Math.max(msUntilExpiry, 0), MAX_TIMEOUT_MS),
-    );
-  }, [clearExpiryTimer]);
+  const applyUser = useCallback(
+    (user: SessionUser | null) => {
+      clearExpiryTimer();
+      if (!user) {
+        setState({ status: 'unauthenticated', user: null });
+        return;
+      }
+      setState({ status: 'authenticated', user });
+      // agenda a transição para "unauthenticated" no exato momento da expiração
+      const msUntilExpiry = user.exp * 1000 - Date.now();
+      expiryTimer.current = setTimeout(
+        () => hydrateRef.current(),
+        Math.min(Math.max(msUntilExpiry, 0), MAX_TIMEOUT_MS),
+      );
+    },
+    [clearExpiryTimer],
+  );
+
+  const hydrate = useCallback(async () => {
+    const user = await fetchSession();
+    applyUser(user);
+  }, [applyUser]);
 
   useEffect(() => {
-    hydrate();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === null || e.key.startsWith('painel.')) hydrate();
-    };
-    window.addEventListener('storage', onStorage);
+    hydrateRef.current = () => void hydrate();
+    void hydrate();
+    // re-checa a sessão ao voltar pra aba (ex.: logout em outra aba, expiração)
+    const onFocus = () => void hydrate();
+    window.addEventListener('focus', onFocus);
     return () => {
-      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', onFocus);
       clearExpiryTimer();
     };
   }, [hydrate, clearExpiryTimer]);
 
   const login = useCallback(
     async (params: LoginParams) => {
-      const { access_token } = await loginRequest(params);
-      authStorage.set(access_token);
-      hydrate();
+      const user = await loginRequest(params);
+      applyUser(user);
     },
-    [hydrate],
+    [applyUser],
   );
 
-  const logout = useCallback(() => {
-    clearExpiryTimer();
-    authStorage.clear();
-    setState({ status: 'unauthenticated', user: null });
+  const logout = useCallback(async () => {
+    await logoutRequest();
+    applyUser(null);
     router.replace('/login');
-  }, [router, clearExpiryTimer]);
+  }, [router, applyUser]);
 
   return createElement(AuthContext.Provider, { value: { ...state, login, logout } }, children);
 }

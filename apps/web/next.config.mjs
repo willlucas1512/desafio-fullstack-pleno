@@ -3,8 +3,6 @@ import { fileURLToPath } from 'node:url';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -35,7 +33,9 @@ const securityHeaders = [
       // do player do widget.
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://vlibras.gov.br https://*.vlibras.gov.br https://use.typekit.net",
       "img-src 'self' data: blob: https://vlibras.gov.br https://*.vlibras.gov.br https://cdn.jsdelivr.net",
-      `connect-src 'self' ${apiUrl} https://vlibras.gov.br https://*.vlibras.gov.br https://cdn.jsdelivr.net`,
+      // Dados vão same-origin pelo BFF (/api/proxy) — 'self' cobre. A API externa
+      // só é acessada server-side, então não precisa entrar no connect-src.
+      "connect-src 'self' https://vlibras.gov.br https://*.vlibras.gov.br https://cdn.jsdelivr.net",
       "frame-src 'self' https://vlibras.gov.br https://*.vlibras.gov.br",
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -50,9 +50,6 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   outputFileTracingRoot: path.join(dirname, '../..'),
-  env: {
-    NEXT_PUBLIC_API_URL: apiUrl,
-  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

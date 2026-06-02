@@ -63,9 +63,6 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        # URL que o browser usa pra chamar a API (porta do host, nao o
-        # nome do servico do compose). Em prod, sobrescreva no .env.
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
         # Credenciais de demo exibidas no login. Vazias por padrão (sem botão);
         # build args não leem env_file, então defina no .env pra pré-popular.
         # Em produção, deixe em branco.
@@ -75,6 +72,9 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      # O BFF (server-side) fala com a API pela rede interna do compose. O browser
+      # nunca acessa a API direto — só o proxy same-origin /api/proxy.
+      API_URL: http://api:3001
     ports:
       - '${WEB_HOST_PORT:-3000}:3000'
     depends_on:
