@@ -16,7 +16,7 @@ test.describe('Autenticação', () => {
 
     await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-    await expect(page.getByText('Total de crianças')).toBeVisible();
+    await expect(page.getByText('Crianças cadastradas')).toBeVisible();
   });
 
   test('login com senha inválida mostra erro e permanece em /login', async ({ page }) => {

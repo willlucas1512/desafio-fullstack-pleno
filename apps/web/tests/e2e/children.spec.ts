@@ -34,17 +34,30 @@ test.describe('Lista de crianças', () => {
   }) => {
     await page.goto('/children/c015'); // c015 has all three areas null
     await expect(page.getByRole('heading', { name: 'Amanda Xavier Torres' })).toBeVisible();
-    await expect(page.getByText(/Sem dados de saúde/i)).toBeVisible();
-    await expect(page.getByText(/Sem dados de educação/i)).toBeVisible();
-    await expect(page.getByText(/Sem dados de assistência social/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Saúde' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Educação' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Assistência social' })).toBeVisible();
+    await expect(page.getByText('Sem dados', { exact: true })).toHaveCount(3);
   });
 
   test('marca como revisado e mostra feedback', async ({ page }) => {
     await page.goto('/children/c001');
-    const button = page.getByRole('button', { name: /marcar como revisado/i });
-    await expect(button).toBeEnabled();
-    await button.click();
+
+    const reviewBtn = page.getByRole('button', { name: /marcar como revisado/i });
+    const undoBtn = page.getByRole('button', { name: /desfazer revisão/i });
+
+    // O banco de e2e é compartilhado/persistente. Espera os controles de revisão
+    // renderizarem e, se c001 já estiver revisado de um run anterior, desfaz pra
+    // restaurar o baseline não-revisado (mantém o teste repetível).
+    await expect(reviewBtn.or(undoBtn)).toBeVisible();
+    if (await undoBtn.isVisible()) {
+      await undoBtn.click();
+      await expect(reviewBtn).toBeEnabled();
+    }
+
+    await expect(reviewBtn).toBeEnabled();
+    await reviewBtn.click();
     await expect(page.getByText(/revisado por/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /já revisado/i })).toBeDisabled();
+    await expect(undoBtn).toBeVisible();
   });
 });

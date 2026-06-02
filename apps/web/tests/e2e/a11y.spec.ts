@@ -3,7 +3,9 @@ import { E2E_EMAIL, E2E_PASSWORD } from './credentials';
 
 test('login é navegável apenas com teclado', async ({ page }) => {
   await page.goto('/login');
-  // email tem autoFocus
+  // Espera o autoFocus do e-mail cair antes de digitar: o foco só é aplicado
+  // após a hidratação, então digitar cedo demais perderia os caracteres.
+  await expect(page.getByLabel('E-mail')).toBeFocused();
   await page.keyboard.type(E2E_EMAIL);
   await page.keyboard.press('Tab'); // esqueci minha senha
   await page.keyboard.press('Tab'); // senha

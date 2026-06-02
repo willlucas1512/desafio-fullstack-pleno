@@ -163,6 +163,9 @@ Tem teste nos três níveis. No back, o Vitest checa desde a regra isolada (logi
 
 ```bash
 npm test --workspaces
+
+# E2E: o Playwright sobe API + web em dev; a API migra e semeia no Postgres do compose
+docker compose up -d postgres
 npm run test:e2e --workspace=apps/web
 ```
 
@@ -170,6 +173,6 @@ npm run test:e2e --workspace=apps/web
 
 1. Refresh token rotativo de verdade. Hoje a sliding session renova o JWT (`exp` de 1h) enquanto a aba fica aberta, mas não existe um refresh token separado de vida longa nem rotação, então fechar a aba por mais de 1h ainda obriga a logar de novo.
 2. Isolar o VLibras num iframe sandboxed pra tirar `'unsafe-inline'`/`'unsafe-eval'` da CSP do resto do app.
-3. Deixar mais leve pra celular fraco. O técnico usa o painel o dia todo, muita vez num aparelho simples e com rede ruim, então o que mais incomoda é o tempo até a tela aparecer. Hoje o gráfico e o mapa já vêm no primeiro carregamento, mesmo que a pessoa nem chegue a olhar pra eles — dava pra carregar os dois só quando precisam e deixar o servidor montar a primeira tela de dados, em vez de mandar uma tela vazia que vai buscar tudo depois. Antes de sair mexendo, eu mediria onde dói (com o Lighthouse simulando rede e processador lentos) pra atacar o que pesa de verdade.
+3. Empurrar a performance ainda mais em aparelhos modestos. O painel já é responsivo e roda bem nesse cenário, mas como o técnico de campo é a persona principal — celular simples, rede instável, acesso o dia todo — vale buscar cada segundo a menos no carregamento: carregar o gráfico e o mapa sob demanda e montar a primeira tela já no servidor. Eu priorizaria os ganhos medindo no Lighthouse com rede e processador limitados.
 4. Uma tela dedicada de cobertura, listando os casos sem dados ordenados por número de áreas faltantes.
 5. Enxergar o que acontece em produção: erro do front caindo num painel (tipo Sentry) e métricas de tempo de resposta no back. O registro de quem revisou o quê e quando já existe (em `GET /children/:id/review-history`); o que falta é a parte de monitoramento.

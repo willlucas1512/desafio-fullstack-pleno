@@ -19,7 +19,7 @@ test.describe('Mobile 375px', () => {
     await page.getByLabel('Senha', { exact: true }).fill(E2E_PASSWORD);
     await page.getByRole('button', { name: /entrar/i }).click();
     await page.waitForURL(/\/dashboard/);
-    await expect(page.getByText('Total de crianças')).toBeVisible();
+    await expect(page.getByText('Crianças cadastradas')).toBeVisible();
 
     const { scrollWidth, clientWidth } = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
@@ -44,7 +44,7 @@ test.describe('Mobile 375px', () => {
     expect(dims.scrollWidth).toBeLessThanOrEqual(dims.clientWidth);
 
     await page.goto('/children/c015');
-    await expect(page.getByText(/sem dados de saúde/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Amanda Xavier Torres' })).toBeVisible();
     dims = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
