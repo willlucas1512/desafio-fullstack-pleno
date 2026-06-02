@@ -1,5 +1,5 @@
+import { z } from 'zod';
 import {
-  countMissingAreas,
   hasAnyAlert,
   hasEducationAlerts,
   hasHealthAlerts,
@@ -7,43 +7,49 @@ import {
   hasSocialAlerts,
 } from '../domain/child-helpers.js';
 import type { Child } from '../domain/child.js';
-import type { ChildrenRepository } from '../repositories/children.repository.js';
+import type { ChildrenStore } from '../repositories/children-store.js';
 
-export interface AlertsByArea {
-  saude: number;
-  educacao: number;
-  assistencia_social: number;
-}
+const count = z.number().int().nonnegative();
 
-export interface AlertsByNeighborhood {
-  bairro: string;
-  total: number;
-  com_alertas: number;
-  sem_dados: number;
-}
+export const alertsByAreaSchema = z.object({
+  saude: count,
+  educacao: count,
+  assistencia_social: count,
+});
 
-export interface Summary {
-  total_criancas: number;
-  com_alertas: number;
-  sem_alertas: number;
-  sem_dados: number;
-  revisadas: number;
-  pendentes_revisao: number;
-  alertas_por_area: AlertsByArea;
-  por_bairro: AlertsByNeighborhood[];
-  cobertura: {
-    com_saude: number;
-    com_educacao: number;
-    com_assistencia_social: number;
-    sem_nenhuma_area: number;
-  };
-}
+export const alertsByNeighborhoodSchema = z.object({
+  bairro: z.string(),
+  total: count,
+  com_alertas: count,
+  sem_dados: count,
+});
+
+export const summarySchema = z.object({
+  total_criancas: count,
+  com_alertas: count,
+  sem_alertas: count,
+  sem_dados: count,
+  revisadas: count,
+  pendentes_revisao: count,
+  alertas_por_area: alertsByAreaSchema,
+  por_bairro: z.array(alertsByNeighborhoodSchema),
+  cobertura: z.object({
+    com_saude: count,
+    com_educacao: count,
+    com_assistencia_social: count,
+    sem_nenhuma_area: count,
+  }),
+});
+
+export type AlertsByArea = z.infer<typeof alertsByAreaSchema>;
+export type AlertsByNeighborhood = z.infer<typeof alertsByNeighborhoodSchema>;
+export type Summary = z.infer<typeof summarySchema>;
 
 export class SummaryService {
-  constructor(private readonly repo: ChildrenRepository) {}
+  constructor(private readonly repo: ChildrenStore) {}
 
-  build(): Summary {
-    const children = this.repo.list();
+  async build(): Promise<Summary> {
+    const children = await this.repo.listAll();
     return aggregate(children);
   }
 }
@@ -66,8 +72,10 @@ function aggregate(children: Child[]): Summary {
     const alerted = hasAnyAlert(c);
     const missingAll = hasNoAreaData(c);
     if (alerted) comAlertas++;
-    if (missingAll) semNenhumaArea++;
-    if (countMissingAreas(c) === 3) semDados++;
+    if (missingAll) {
+      semDados++;
+      semNenhumaArea++;
+    }
     if (c.revisado) revisadas++;
     if (hasHealthAlerts(c)) alertasSaude++;
     if (hasEducationAlerts(c)) alertasEducacao++;

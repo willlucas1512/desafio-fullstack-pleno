@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { ChildrenRepository } from '../repositories/children.repository.js';
+import { FakeChildrenStore } from '../test/fake-children-store.js';
 import { fixtureChildren } from '../test/fixtures.js';
 import { SummaryService } from './summary.service.js';
 
 describe('SummaryService.build', () => {
-  const repo = new ChildrenRepository(fixtureChildren);
+  const repo = new FakeChildrenStore(fixtureChildren);
   const service = new SummaryService(repo);
 
-  it('aggregates totals across the fixture', () => {
-    const summary = service.build();
+  it('aggregates totals across the fixture', async () => {
+    const summary = await service.build();
     expect(summary.total_criancas).toBe(5);
     expect(summary.com_alertas).toBe(3); // c001, c002, c003
     expect(summary.sem_dados).toBe(1); // c004 (all areas null)
@@ -17,8 +17,8 @@ describe('SummaryService.build', () => {
     expect(summary.pendentes_revisao).toBe(4);
   });
 
-  it('counts alerts per area independently of other areas', () => {
-    const { alertas_por_area } = service.build();
+  it('counts alerts per area independently of other areas', async () => {
+    const { alertas_por_area } = await service.build();
     expect(alertas_por_area).toEqual({
       saude: 1, // c002
       educacao: 1, // c001
@@ -26,8 +26,8 @@ describe('SummaryService.build', () => {
     });
   });
 
-  it('reports coverage gaps per area', () => {
-    const { cobertura } = service.build();
+  it('reports coverage gaps per area', async () => {
+    const { cobertura } = await service.build();
     expect(cobertura).toEqual({
       com_saude: 4, // all except c004
       com_educacao: 3, // not c003, c004
@@ -36,8 +36,8 @@ describe('SummaryService.build', () => {
     });
   });
 
-  it('groups by bairro alphabetically', () => {
-    const { por_bairro } = service.build();
+  it('groups by bairro alphabetically', async () => {
+    const { por_bairro } = await service.build();
     expect(por_bairro.map((b) => b.bairro)).toEqual(['Mangueira', 'Maré', 'Rocinha']);
     expect(por_bairro.find((b) => b.bairro === 'Mangueira')).toEqual({
       bairro: 'Mangueira',
@@ -47,8 +47,8 @@ describe('SummaryService.build', () => {
     });
   });
 
-  it('separates sem_alertas from sem_dados (key business rule)', () => {
-    const { com_alertas, sem_alertas, sem_dados, total_criancas } = service.build();
+  it('separates sem_alertas from sem_dados (key business rule)', async () => {
+    const { com_alertas, sem_alertas, sem_dados, total_criancas } = await service.build();
     expect(com_alertas + sem_alertas + sem_dados).toBe(total_criancas);
   });
 });
