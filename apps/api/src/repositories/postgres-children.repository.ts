@@ -1,14 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import pg from 'pg';
-import {
-  listNeighborhoods,
-  queryChildren,
-  type ChildrenPage,
-  type ListChildrenQuery,
+import type {
+  AlertFilter,
+  ChildrenPage,
+  ListChildrenQuery,
+  OrderBy,
 } from '../domain/child-query.js';
 import { childArraySchema, childSchema, type Child } from '../domain/child.js';
-import { aggregate, type Summary } from '../domain/summary.js';
+import { summarySchema, type Summary } from '../domain/summary.js';
 import type { ChildrenStore } from './children-store.js';
 import { runMigrations } from './migrations.js';
 
@@ -22,18 +22,80 @@ interface ChildDocRow {
   data: Child;
 }
 
+/** ORDER BY por critério. Strings estáticas (nunca input do usuário). Cada uma
+ * termina em `id` p/ desempate estável; COLLATE "C" reproduz a comparação por
+ * code point do domínio sobre as chaves já normalizadas. */
+const ORDER_SQL: Record<OrderBy, string> = {
+  nome: 'nome_norm COLLATE "C" ASC, id COLLATE "C" ASC',
+  bairro: 'bairro_norm COLLATE "C" ASC, nome_norm COLLATE "C" ASC, id COLLATE "C" ASC',
+  idade: 'data_nascimento COLLATE "C" DESC, id COLLATE "C" ASC',
+  revisao: `revisado ASC, COALESCE(revisado_em, '') COLLATE "C" ASC, id COLLATE "C" ASC`,
+  alertas: 'alertas_total DESC, nome_norm COLLATE "C" ASC, id COLLATE "C" ASC',
+};
+
+/** Predicado WHERE do filtro de alertas (sem parâmetros — valores fixos). */
+const ALERT_SQL: Record<AlertFilter, string> = {
+  com: 'alertas_total > 0',
+  sem: 'alertas_total = 0',
+  saude: 'alertas_saude > 0',
+  educacao: 'alertas_educacao > 0',
+  assistencia_social: 'alertas_social > 0',
+};
+
+/** Monta o WHERE parametrizado a partir da query (sem concatenar valores). */
+function buildFilter(q: ListChildrenQuery): { where: string; params: Array<string | boolean> } {
+  const clauses: string[] = [];
+  const params: Array<string | boolean> = [];
+  const param = (value: string | boolean): string => {
+    params.push(value);
+    return `$${params.length}`;
+  };
+
+  if (q.nome) clauses.push(`strpos(nome_norm, lower(f_unaccent(btrim(${param(q.nome)})))) > 0`);
+  if (q.bairro) clauses.push(`bairro_norm = lower(f_unaccent(btrim(${param(q.bairro)})))`);
+  if (q.alertas) clauses.push(ALERT_SQL[q.alertas]);
+  if (q.revisado !== undefined) clauses.push(`revisado = ${param(q.revisado)}`);
+
+  return { where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '', params };
+}
+
+interface TotalsRow {
+  total_criancas: number;
+  com_alertas: number;
+  sem_dados: number;
+  revisadas: number;
+  alertas_saude: number;
+  alertas_educacao: number;
+  alertas_social: number;
+  com_saude: number;
+  com_educacao: number;
+  com_social: number;
+}
+
+interface BairroRow {
+  bairro: string;
+  total: number;
+  com_alertas: number;
+  sem_dados: number;
+}
+
 /**
- * Persistência em Postgres: cada criança é UM documento JSONB (`data`). O banco
- * só dá durabilidade entre restarts — filtro, ordenação, paginação e agregação
- * NÃO vivem aqui, são delegados ao domínio (`queryChildren`, `aggregate`,
- * `listNeighborhoods`), a MESMA lógica que o fake de testes usa.
+ * Persistência em Postgres. Cada criança é UM documento JSONB (`data`), que
+ * segue sendo a ÚNICA superfície de escrita — o schema Zod (`childSchema`) é a
+ * definição canônica do formato, então evoluir um campo não-consultável não
+ * toca DDL.
  *
- * Guardar o registro inteiro como JSONB (em vez de coluna por campo) encurta o
- * custo de evolução: o schema Zod (`childSchema`) é a única definição do
- * formato, então adicionar campo/área não toca DDL, INSERT nem mapeamento de
- * linha. Toda leitura revalida com `childSchema.parse`, guardando contra drift.
- * Como o seed tem 25 crianças (read-mostly), carregar tudo e processar em
- * memória é trivial e elimina a duplicação SQL↔TS.
+ * Filtro, ordenação, paginação e agregação rodam NO BANCO (não mais em memória
+ * a cada request): colunas geradas a partir do JSONB (`nome_norm`,
+ * `alertas_total`, ...) projetam os campos consultáveis e são indexadas (ver
+ * migration 004). A listagem devolve só a página (LIMIT/OFFSET) e apenas essas
+ * linhas passam por `childSchema.parse` — sem full-scan nem N validações por
+ * chamada. `summary` vira COUNTs agregados; `listNeighborhoods`, um DISTINCT.
+ *
+ * As funções de domínio (`queryChildren`, `aggregate`, `listNeighborhoods`)
+ * permanecem como especificação executável: o {@link FakeChildrenStore} as usa
+ * nos testes e o teste de integração compara o resultado do SQL contra elas
+ * sobre o seed, garantindo que as duas implementações concordam.
  */
 export class PostgresChildrenRepository implements ChildrenStore {
   private constructor(
@@ -80,27 +142,110 @@ export class PostgresChildrenRepository implements ChildrenStore {
     }
   }
 
-  /** Carrega todas as crianças do banco. Ordem por `seq` só dá determinismo a
-   * `listAll`; `queryChildren`/`aggregate` reordenam por conta. */
+  /** Carrega todas as crianças sem filtro (uso geral, ex.: testes/paridade). A
+   * ordem por `seq` dá só determinismo de inserção; a listagem ordena no SQL. */
   private async loadAll(): Promise<Child[]> {
     const { rows } = await this.pool.query<ChildDocRow>('SELECT data FROM children ORDER BY seq');
     return rows.map((r) => childSchema.parse(r.data));
   }
 
+  /**
+   * Filtra/ordena/pagina no banco e valida só a página retornada. O total vem de
+   * um COUNT sobre o mesmo WHERE (duas queries: contagem + página).
+   */
   async list(query: ListChildrenQuery): Promise<ChildrenPage> {
-    return queryChildren(await this.loadAll(), query);
+    const { where, params } = buildFilter(query);
+
+    const totalRes = await this.pool.query<{ total: number }>(
+      `SELECT count(*)::int AS total FROM children ${where}`,
+      params,
+    );
+    const total = totalRes.rows[0]?.total ?? 0;
+
+    const offset = (query.page - 1) * query.pageSize;
+    const pageRes = await this.pool.query<ChildDocRow>(
+      `SELECT data FROM children ${where}
+       ORDER BY ${ORDER_SQL[query.orderBy]}
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, query.pageSize, offset],
+    );
+
+    return { items: pageRes.rows.map((r) => childSchema.parse(r.data)), total };
   }
 
   async listAll(): Promise<Child[]> {
     return this.loadAll();
   }
 
+  /** Indicadores agregados via COUNT/FILTER sobre as colunas geradas. */
   async summary(): Promise<Summary> {
-    return aggregate(await this.loadAll());
+    const totals = await this.pool.query<TotalsRow>(`
+      SELECT
+        count(*)::int                                                                     AS total_criancas,
+        count(*) FILTER (WHERE alertas_total > 0)::int                                     AS com_alertas,
+        count(*) FILTER (WHERE NOT tem_saude AND NOT tem_educacao AND NOT tem_social)::int AS sem_dados,
+        count(*) FILTER (WHERE revisado)::int                                              AS revisadas,
+        count(*) FILTER (WHERE alertas_saude > 0)::int                                     AS alertas_saude,
+        count(*) FILTER (WHERE alertas_educacao > 0)::int                                  AS alertas_educacao,
+        count(*) FILTER (WHERE alertas_social > 0)::int                                    AS alertas_social,
+        count(*) FILTER (WHERE tem_saude)::int                                             AS com_saude,
+        count(*) FILTER (WHERE tem_educacao)::int                                          AS com_educacao,
+        count(*) FILTER (WHERE tem_social)::int                                            AS com_social
+      FROM children
+    `);
+    const t = totals.rows[0]!;
+
+    const porBairro = await this.pool.query<BairroRow>(`
+      WITH agg AS (
+        SELECT
+          data->>'bairro' AS bairro,
+          bairro_norm     AS bnorm,
+          count(*)::int                                                                     AS total,
+          count(*) FILTER (WHERE alertas_total > 0)::int                                     AS com_alertas,
+          count(*) FILTER (WHERE NOT tem_saude AND NOT tem_educacao AND NOT tem_social)::int AS sem_dados
+        FROM children
+        GROUP BY data->>'bairro', bairro_norm
+      )
+      SELECT bairro, total, com_alertas, sem_dados
+      FROM agg
+      ORDER BY bnorm COLLATE "C" ASC, bairro COLLATE "C" ASC
+    `);
+
+    return summarySchema.parse({
+      total_criancas: t.total_criancas,
+      com_alertas: t.com_alertas,
+      sem_alertas: t.total_criancas - t.com_alertas - t.sem_dados,
+      sem_dados: t.sem_dados,
+      revisadas: t.revisadas,
+      pendentes_revisao: t.total_criancas - t.revisadas,
+      alertas_por_area: {
+        saude: t.alertas_saude,
+        educacao: t.alertas_educacao,
+        assistencia_social: t.alertas_social,
+      },
+      por_bairro: porBairro.rows,
+      cobertura: {
+        com_saude: t.com_saude,
+        com_educacao: t.com_educacao,
+        com_assistencia_social: t.com_social,
+        sem_nenhuma_area: t.sem_dados,
+      },
+    });
   }
 
+  /** Bairros distintos na ordem determinística da listagem (chave normalizada,
+   * desempate pelo valor cru) — DISTINCT via GROUP BY pra ordenar por `bairro_norm`. */
   async listNeighborhoods(): Promise<string[]> {
-    return listNeighborhoods(await this.loadAll());
+    const { rows } = await this.pool.query<{ bairro: string }>(`
+      WITH agg AS (
+        SELECT data->>'bairro' AS bairro, bairro_norm AS bnorm
+        FROM children
+        GROUP BY data->>'bairro', bairro_norm
+      )
+      SELECT bairro FROM agg
+      ORDER BY bnorm COLLATE "C" ASC, bairro COLLATE "C" ASC
+    `);
+    return rows.map((r) => r.bairro);
   }
 
   async findById(id: string): Promise<Child | null> {
