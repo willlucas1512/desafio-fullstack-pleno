@@ -9,14 +9,19 @@ import {
   upstreamUnreachable,
 } from "@/lib/server/api-config";
 
-export async function POST(request: Request): Promise<NextResponse> {
-  const body = await request.text();
+export async function POST(): Promise<NextResponse> {
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+
+  if (!token) {
+    return NextResponse.json({ user: null }, { status: 401 });
+  }
+
   let upstream: Response;
   try {
-    upstream = await fetchUpstream(`${API_URL}/auth/token`, {
+    upstream = await fetchUpstream(`${API_URL}/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
+      headers: { Authorization: `Bearer ${token}` },
     });
   } catch (error) {
     return upstreamUnreachable(error);
@@ -24,24 +29,21 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const data = (await upstream.json().catch(() => null)) as {
     access_token?: string;
-    message?: string;
   } | null;
 
   if (!upstream.ok || !data?.access_token) {
-    return NextResponse.json(data ?? { message: "Falha na autenticação" }, {
-      status: upstream.status === 200 ? 502 : upstream.status,
-    });
+    if (upstream.status === 401) jar.delete(SESSION_COOKIE);
+    return NextResponse.json(
+      { user: null },
+      { status: upstream.status === 200 ? 502 : upstream.status },
+    );
   }
 
   const payload = decodeJwt(data.access_token);
-  const jar = await cookies();
   jar.set(
     SESSION_COOKIE,
     data.access_token,
     sessionCookieOptions(payload?.exp),
   );
-
-  return NextResponse.json({
-    user: payload ? toSessionUser(payload) : null,
-  });
+  return NextResponse.json({ user: payload ? toSessionUser(payload) : null });
 }
