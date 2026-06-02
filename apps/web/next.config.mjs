@@ -21,10 +21,12 @@ const securityHeaders = [
       // O VLibras carrega chunks de www.vlibras.gov.br (subdomínio), que o CSP NÃO
       // cobre com o apex — daí o wildcard *.vlibras.gov.br (o `*.` não inclui o
       // apex, então mantemos os dois).
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vlibras.gov.br https://*.vlibras.gov.br https://cdn.jsdelivr.net",
-      // O player do VLibras (Unity) cria um Web Worker a partir de um blob: para
-      // descompactar os assets. Sem worker-src ele cai no script-src (que não tem
-      // blob:) e o worker é bloqueado.
+      // O loader do Unity (player do VLibras) injeta um <script> a partir de uma
+      // URL blob: — sem `blob:` aqui o script-src bloqueia o player inteiro.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://vlibras.gov.br https://*.vlibras.gov.br https://cdn.jsdelivr.net",
+      // O player do VLibras (Unity) também cria um Web Worker a partir de um blob:
+      // para descompactar os assets. Sem worker-src ele cai no script-src e o
+      // worker é bloqueado.
       "worker-src 'self' blob:",
       // Material Icons (widget de acessibilidade) carrega o CSS do Google Fonts...
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
