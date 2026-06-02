@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual as cryptoTimingSafeEqual } from 'node:crypto';
+
 export interface TechnicianCredentials {
   email: string;
   password: string;
@@ -14,13 +16,11 @@ export function createAuthService(credentials: TechnicianCredentials): AuthServi
     },
   };
 }
+
+// Compara via SHA-256 de comprimento fixo: timingSafeEqual exige buffers do mesmo
+// tamanho, e o hash evita vazar o comprimento do segredo pelo tempo de resposta.
 function timingSafeEqual(a: string, b: string): boolean {
-  const max = Math.max(a.length, b.length);
-  let diff = a.length === b.length ? 0 : 1;
-  for (let i = 0; i < max; i++) {
-    const ca = i < a.length ? a.charCodeAt(i) : 0;
-    const cb = i < b.length ? b.charCodeAt(i) : 0;
-    diff |= ca ^ cb;
-  }
-  return diff === 0;
+  const ha = createHash('sha256').update(a).digest();
+  const hb = createHash('sha256').update(b).digest();
+  return cryptoTimingSafeEqual(ha, hb);
 }

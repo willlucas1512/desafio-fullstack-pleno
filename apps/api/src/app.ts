@@ -72,8 +72,21 @@ export async function buildApp({ env, childrenRepo }: BuildAppOptions): Promise<
 
   await app.register(sensible);
   await app.register(helmet, {
-    // a doc do Swagger usa estilos/scripts inline; CSP padrão do helmet quebraria /docs
-    contentSecurityPolicy: false,
+    // CSP restritiva mantida: só afrouxamos o necessário pra UI do Swagger, que
+    // injeta estilos/scripts inline em /docs. O resto fica no default seguro
+    // (default-src 'self', object-src 'none', frame-ancestors, etc.).
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'self'"],
+        fontSrc: ["'self'", 'https:', 'data:'],
+        imgSrc: ["'self'", 'data:', 'validator.swagger.io'],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+      },
+    },
   });
   await app.register(cors, {
     origin: env.CORS_ORIGIN.split(',').map((o) => o.trim()),
