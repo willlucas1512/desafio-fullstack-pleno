@@ -1,5 +1,6 @@
 import type { ChildrenPage, ListChildrenQuery } from '../domain/child-query.js';
 import type { Child } from '../domain/child.js';
+import type { Summary } from '../domain/summary.js';
 
 /**
  * Abstração de persistência das crianças. Todo o estado vive no Postgres em
@@ -9,8 +10,10 @@ import type { Child } from '../domain/child.js';
  */
 export interface ChildrenStore {
   list(query: ListChildrenQuery): Promise<ChildrenPage>;
-  /** Carrega todas as crianças sem filtro/paginação — usado pela agregação do /summary. */
+  /** Carrega todas as crianças sem filtro/paginação (uso geral, ex.: testes). */
   listAll(): Promise<Child[]>;
+  /** Indicadores agregados do painel — calculados no banco em produção (SQL). */
+  summary(): Promise<Summary>;
   findById(id: string): Promise<Child | null>;
   markReviewed(id: string, reviewedBy: string): Promise<Child | null>;
   unmarkReviewed(id: string): Promise<Child | null>;

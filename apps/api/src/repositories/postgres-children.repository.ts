@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import pg from 'pg';
 import type { AlertFilter, ChildrenPage, ListChildrenQuery, OrderBy } from '../domain/child-query.js';
 import { childArraySchema, childSchema, type Child } from '../domain/child.js';
+import { summarySchema, type Summary } from '../domain/summary.js';
 import type { ChildrenStore } from './children-store.js';
 import { runMigrations } from './migrations.js';
 
@@ -169,16 +170,107 @@ export class PostgresChildrenRepository implements ChildrenStore {
   }
 
   async listNeighborhoods(): Promise<string[]> {
+    // Mesma ordem normalizada/determinística da lista (ver child-query.ts).
     const { rows } = await this.pool.query<{ bairro: string }>(
-      'SELECT DISTINCT bairro FROM children ORDER BY bairro',
+      `SELECT DISTINCT bairro FROM children ORDER BY unaccent(lower(bairro)) COLLATE "C", bairro COLLATE "C"`,
     );
     return rows.map((r) => r.bairro);
+  }
+
+  /**
+   * Indicadores agregados calculados no banco (espelha `aggregate` de
+   * domain/summary.ts). Duas queries: contagens globais via `count(*) FILTER`
+   * e o recorte por bairro via `GROUP BY`. A paridade com a definição canônica
+   * é travada por teste (Testcontainers).
+   */
+  async summary(): Promise<Summary> {
+    const totals = this.pool.query<TotalsRow>(`
+      SELECT
+        count(*)::int AS total,
+        count(*) FILTER (WHERE ${ALERTS_TOTAL} > 0)::int AS com_alertas,
+        count(*) FILTER (WHERE ${NO_AREA_DATA})::int AS sem_dados,
+        count(*) FILTER (WHERE revisado)::int AS revisadas,
+        count(*) FILTER (WHERE ${areaAlerts('saude')} > 0)::int AS alertas_saude,
+        count(*) FILTER (WHERE ${areaAlerts('educacao')} > 0)::int AS alertas_educacao,
+        count(*) FILTER (WHERE ${areaAlerts('assistencia_social')} > 0)::int AS alertas_social,
+        count(*) FILTER (WHERE saude IS NOT NULL)::int AS com_saude,
+        count(*) FILTER (WHERE educacao IS NOT NULL)::int AS com_educacao,
+        count(*) FILTER (WHERE assistencia_social IS NOT NULL)::int AS com_assistencia_social
+      FROM children
+    `);
+    const byBairro = this.pool.query<BairroRow>(`
+      SELECT
+        bairro,
+        count(*)::int AS total,
+        count(*) FILTER (WHERE ${ALERTS_TOTAL} > 0)::int AS com_alertas,
+        count(*) FILTER (WHERE ${NO_AREA_DATA})::int AS sem_dados
+      FROM children
+      GROUP BY bairro
+      ORDER BY unaccent(lower(bairro)) COLLATE "C", bairro COLLATE "C"
+    `);
+
+    const [{ rows: t }, { rows: b }] = await Promise.all([totals, byBairro]);
+    const r = t[0]!;
+
+    return summarySchema.parse({
+      total_criancas: r.total,
+      com_alertas: r.com_alertas,
+      sem_alertas: r.total - r.com_alertas - r.sem_dados,
+      sem_dados: r.sem_dados,
+      revisadas: r.revisadas,
+      pendentes_revisao: r.total - r.revisadas,
+      alertas_por_area: {
+        saude: r.alertas_saude,
+        educacao: r.alertas_educacao,
+        assistencia_social: r.alertas_social,
+      },
+      por_bairro: b.map((row) => ({
+        bairro: row.bairro,
+        total: row.total,
+        com_alertas: row.com_alertas,
+        sem_dados: row.sem_dados,
+      })),
+      cobertura: {
+        com_saude: r.com_saude,
+        com_educacao: r.com_educacao,
+        com_assistencia_social: r.com_assistencia_social,
+        sem_nenhuma_area: r.sem_dados,
+      },
+    });
   }
 
   async close(): Promise<void> {
     await this.pool.end();
   }
 }
+
+interface TotalsRow {
+  total: number;
+  com_alertas: number;
+  sem_dados: number;
+  revisadas: number;
+  alertas_saude: number;
+  alertas_educacao: number;
+  alertas_social: number;
+  com_saude: number;
+  com_educacao: number;
+  com_assistencia_social: number;
+}
+
+interface BairroRow {
+  bairro: string;
+  total: number;
+  com_alertas: number;
+  sem_dados: number;
+}
+
+/** Nº de alertas de UMA área (área ausente conta como zero). */
+function areaAlerts(area: 'saude' | 'educacao' | 'assistencia_social'): string {
+  return `jsonb_array_length(coalesce(${area}->'alertas', '[]'::jsonb))`;
+}
+
+/** Criança sem nenhuma das três áreas (todas NULL). */
+const NO_AREA_DATA = `saude IS NULL AND educacao IS NULL AND assistencia_social IS NULL`;
 
 function alertCondition(filter: AlertFilter): string {
   switch (filter) {
@@ -194,19 +286,26 @@ function alertCondition(filter: AlertFilter): string {
   }
 }
 
+// Espelha `compareBy`/`sortChildren` de domain/child-query.ts. `COLLATE "C"`
+// dá ordem por code point (== byteCompare no TS) e `id` fecha todo critério
+// como desempate estável. A paridade é travada por testes (Testcontainers).
+const NAME_KEY = `unaccent(lower(nome)) COLLATE "C"`;
+const BAIRRO_KEY = `unaccent(lower(bairro)) COLLATE "C"`;
+const ID_TIEBREAK = `id COLLATE "C" ASC`;
+
 function orderClause(orderBy: OrderBy): string {
   switch (orderBy) {
     case 'nome':
-      return 'ORDER BY unaccent(lower(nome)) ASC';
+      return `ORDER BY ${NAME_KEY} ASC, ${ID_TIEBREAK}`;
     case 'bairro':
-      return 'ORDER BY unaccent(lower(bairro)) ASC, unaccent(lower(nome)) ASC';
+      return `ORDER BY ${BAIRRO_KEY} ASC, ${NAME_KEY} ASC, ${ID_TIEBREAK}`;
     case 'idade':
-      return 'ORDER BY data_nascimento DESC';
+      return `ORDER BY data_nascimento COLLATE "C" DESC, ${ID_TIEBREAK}`;
     case 'revisao':
-      return 'ORDER BY revisado ASC, revisado_em ASC NULLS FIRST';
+      return `ORDER BY revisado ASC, revisado_em ASC NULLS FIRST, ${ID_TIEBREAK}`;
     case 'alertas':
     default:
-      return `ORDER BY ${ALERTS_TOTAL} DESC, unaccent(lower(nome)) ASC`;
+      return `ORDER BY ${ALERTS_TOTAL} DESC, ${NAME_KEY} ASC, ${ID_TIEBREAK}`;
   }
 }
 

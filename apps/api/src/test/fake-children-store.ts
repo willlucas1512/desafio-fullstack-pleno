@@ -1,5 +1,7 @@
 import { type ChildrenPage, type ListChildrenQuery, queryChildren } from '../domain/child-query.js';
+import { normalize } from '../domain/child-helpers.js';
 import type { Child } from '../domain/child.js';
+import { aggregate, type Summary } from '../domain/summary.js';
 import type { ChildrenStore } from '../repositories/children-store.js';
 
 /**
@@ -26,6 +28,11 @@ export class FakeChildrenStore implements ChildrenStore {
   // eslint-disable-next-line @typescript-eslint/require-await
   async listAll(): Promise<Child[]> {
     return this.all().map((c) => structuredClone(c));
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async summary(): Promise<Summary> {
+    return aggregate(this.all());
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -56,7 +63,14 @@ export class FakeChildrenStore implements ChildrenStore {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async listNeighborhoods(): Promise<string[]> {
-    return [...new Set(this.all().map((c) => c.bairro))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    // Mesma ordem normalizada/determinística do Postgres (ver child-query.ts).
+    return [...new Set(this.all().map((c) => c.bairro))].sort((a, b) => {
+      const na = normalize(a);
+      const nb = normalize(b);
+      if (na < nb) return -1;
+      if (na > nb) return 1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
   }
 
   private all(): Child[] {

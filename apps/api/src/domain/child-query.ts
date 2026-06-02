@@ -31,8 +31,15 @@ export interface ChildrenPage {
 
 /**
  * Aplica filtros, ordenação e paginação em memória. É a definição canônica das
- * regras de listagem — o {@link PostgresChildrenRepository} replica o mesmo
- * comportamento em SQL, e o fake de testes reusa esta função.
+ * regras de listagem — o {@link PostgresChildrenRepository} replica exatamente
+ * o mesmo comportamento em SQL e o fake de testes reusa esta função. A paridade
+ * SQL↔TS é garantida pela matriz em `postgres-children.repository.test.ts`.
+ *
+ * Ordenação determinística: todas as comparações de texto usam `normalize`
+ * (NFD sem acento + lowercase, equivalente a `unaccent(lower(...))` no SQL) com
+ * comparação por code point (equivalente a `COLLATE "C"`), e todo critério
+ * termina com `id` como desempate estável — então JS (sort estável) e SQL
+ * (ordem de heap, instável) produzem exatamente a mesma sequência.
  */
 export function queryChildren(all: Child[], q: ListChildrenQuery): ChildrenPage {
   const filtered = all.filter((child) => matchesFilters(child, q));
@@ -56,27 +63,35 @@ function matchesAlertFilter(child: Child, filter: AlertFilter): boolean {
   return hasAlertsIn(child, filter as AlertArea);
 }
 
+/** Comparação por code point (UTF-16), espelhando `COLLATE "C"` do Postgres. */
+function byteCompare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+const byName = (a: Child, b: Child): number => byteCompare(normalize(a.nome), normalize(b.nome));
+const byId = (a: Child, b: Child): number => byteCompare(a.id, b.id);
+
 function sortChildren(children: Child[], orderBy: OrderBy): Child[] {
-  const arr = [...children];
+  // Todo critério termina com `byId` pra desempate estável idêntico ao SQL.
+  return [...children].sort((a, b) => compareBy(orderBy, a, b) || byId(a, b));
+}
+
+function compareBy(orderBy: OrderBy, a: Child, b: Child): number {
   switch (orderBy) {
     case 'nome':
-      return arr.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      return byName(a, b);
     case 'bairro':
-      return arr.sort(
-        (a, b) => a.bairro.localeCompare(b.bairro, 'pt-BR') || a.nome.localeCompare(b.nome, 'pt-BR'),
-      );
+      return byteCompare(normalize(a.bairro), normalize(b.bairro)) || byName(a, b);
     case 'idade':
       // mais novo primeiro (data de nascimento mais recente)
-      return arr.sort((a, b) => b.data_nascimento.localeCompare(a.data_nascimento));
+      return byteCompare(b.data_nascimento, a.data_nascimento);
     case 'revisao':
-      // pendentes primeiro, depois revisado mais antigo
-      return arr.sort((a, b) => {
-        if (a.revisado !== b.revisado) return a.revisado ? 1 : -1;
-        return (a.revisado_em ?? '').localeCompare(b.revisado_em ?? '');
-      });
+      // pendentes primeiro, depois revisado mais antigo (null = mais antigo)
+      if (a.revisado !== b.revisado) return a.revisado ? 1 : -1;
+      return byteCompare(a.revisado_em ?? '', b.revisado_em ?? '');
     case 'alertas':
     default:
       // mais alertas primeiro; empate desfaz por nome
-      return arr.sort((a, b) => countAlerts(b) - countAlerts(a) || a.nome.localeCompare(b.nome, 'pt-BR'));
+      return countAlerts(b) - countAlerts(a) || byName(a, b);
   }
 }

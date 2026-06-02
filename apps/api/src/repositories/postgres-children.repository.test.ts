@@ -1,20 +1,30 @@
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { listChildrenQuerySchema } from '../domain/child-query.js';
+import { listChildrenQuerySchema, type ListChildrenQuery } from '../domain/child-query.js';
+import { childArraySchema } from '../domain/child.js';
+import { FakeChildrenStore } from '../test/fake-children-store.js';
 import { PostgresChildrenRepository } from './postgres-children.repository.js';
 
 const seedPath = fileURLToPath(new URL('../../../../data/seed.json', import.meta.url));
-const query = (override: Record<string, unknown> = {}) => listChildrenQuerySchema.parse(override);
+const query = (override: Record<string, unknown> = {}): ListChildrenQuery =>
+  listChildrenQuerySchema.parse(override);
+
+// Em CI a falta de Docker é erro (não queremos "verde" sem exercitar o caminho
+// real do Postgres). Localmente, sem o daemon, a suíte se auto-pula.
+const REQUIRE_DOCKER = process.env.CI === 'true' || process.env.CI === '1';
 
 /**
- * Cobre o caminho de produção (Postgres) com um banco real via Testcontainers.
- * Quando o Docker não está disponível (ex.: máquina local sem o daemon), cada
- * teste se auto-pula em vez de derrubar a suíte — em CI com Docker, roda de fato.
+ * Cobre o caminho de produção (Postgres) com um banco real via Testcontainers e
+ * trava a PARIDADE com a definição canônica de listagem (`queryChildren`, usada
+ * pelo {@link FakeChildrenStore}): para cada ordenação e filtro, o SQL precisa
+ * devolver exatamente a mesma sequência de ids e o mesmo total.
  */
 describe('PostgresChildrenRepository (Testcontainers)', () => {
   let container: StartedPostgreSqlContainer | undefined;
   let repo: PostgresChildrenRepository | undefined;
+  let fake: FakeChildrenStore | undefined;
   let dockerUnavailable = false;
 
   beforeAll(async () => {
@@ -24,9 +34,15 @@ describe('PostgresChildrenRepository (Testcontainers)', () => {
         databaseUrl: container.getConnectionUri(),
         seedPath,
       });
+      const seed = childArraySchema.parse(JSON.parse(await readFile(seedPath, 'utf-8')) as unknown);
+      fake = new FakeChildrenStore(seed);
     } catch (err) {
+      const msg = (err as Error).message;
+      if (REQUIRE_DOCKER) {
+        throw new Error(`Docker é obrigatório em CI para os testes do Postgres: ${msg}`);
+      }
       dockerUnavailable = true;
-      console.warn(`[pg-it] pulando testes Postgres (Docker indisponível): ${(err as Error).message}`);
+      console.warn(`[pg-it] pulando testes Postgres (Docker indisponível): ${msg}`);
     }
   }, 180_000);
 
@@ -47,41 +63,58 @@ describe('PostgresChildrenRepository (Testcontainers)', () => {
     expect(await repo!.findById('id-que-nao-existe')).toBeNull();
   });
 
-  it('list aplica paginação em SQL e devolve o total da query', async (ctx) => {
-    if (dockerUnavailable) return ctx.skip();
-    const page = await repo!.list(query({ page: 1, pageSize: 5, orderBy: 'nome' }));
-    expect(page.items).toHaveLength(5);
-    expect(page.total).toBe(25);
+  // --- Paridade SQL ↔ definição canônica (queryChildren via FakeChildrenStore) ---
+  // Roda ANTES das mutações pra comparar os dois lados sobre o mesmo seed intacto.
 
-    const page2 = await repo!.list(query({ page: 2, pageSize: 5, orderBy: 'nome' }));
-    const overlap = page.items.filter((c) => page2.items.some((o) => o.id === c.id));
-    expect(overlap).toHaveLength(0);
+  const orderings = ['nome', 'bairro', 'idade', 'alertas', 'revisao'] as const;
+  const filters = [
+    {},
+    { alertas: 'com' },
+    { alertas: 'sem' },
+    { alertas: 'saude' },
+    { alertas: 'educacao' },
+    { alertas: 'assistencia_social' },
+    { revisado: 'true' },
+    { revisado: 'false' },
+    { nome: 'a' },
+    { bairro: 'rocinha' },
+  ] as const;
+
+  for (const orderBy of orderings) {
+    for (const filter of filters) {
+      const label = `${orderBy} + ${JSON.stringify(filter)}`;
+      it(`paridade SQL↔canônica: ${label}`, async (ctx) => {
+        if (dockerUnavailable) return ctx.skip();
+        const q = query({ ...filter, orderBy, pageSize: 100 });
+        const sql = await repo!.list(q);
+        const canon = await fake!.list(q);
+        expect(sql.total).toBe(canon.total);
+        expect(sql.items.map((c) => c.id)).toEqual(canon.items.map((c) => c.id));
+      });
+    }
+  }
+
+  it('paridade de paginação: páginas em SQL batem com a definição canônica', async (ctx) => {
+    if (dockerUnavailable) return ctx.skip();
+    for (const page of [1, 2, 3]) {
+      const q = query({ orderBy: 'nome', page, pageSize: 7 });
+      const sql = await repo!.list(q);
+      const canon = await fake!.list(q);
+      expect(sql.items.map((c) => c.id)).toEqual(canon.items.map((c) => c.id));
+    }
   });
 
-  it('list ordena por nome (case/acento-insensível) em SQL', async (ctx) => {
+  it('paridade de listNeighborhoods', async (ctx) => {
     if (dockerUnavailable) return ctx.skip();
-    const { items } = await repo!.list(query({ orderBy: 'nome', pageSize: 100 }));
-    const nomes = items.map((c) => c.nome);
-    const esperado = [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    expect(nomes).toEqual(esperado);
+    expect(await repo!.listNeighborhoods()).toEqual(await fake!.listNeighborhoods());
   });
 
-  it('list filtra por nome (substring, sem acento) em SQL', async (ctx) => {
+  it('paridade do summary: agregação SQL bate com a definição canônica', async (ctx) => {
     if (dockerUnavailable) return ctx.skip();
-    const all = await repo!.listAll();
-    const alvo = all[0]!;
-    const trecho = alvo.nome.slice(0, 3).toUpperCase();
-    const { items } = await repo!.list(query({ nome: trecho, pageSize: 100 }));
-    expect(items.some((c) => c.id === alvo.id)).toBe(true);
-    expect(items.every((c) => c.nome.toLowerCase().includes(trecho.toLowerCase()))).toBe(true);
+    expect(await repo!.summary()).toEqual(await fake!.summary());
   });
 
-  it('list filtra por com/sem alertas de forma complementar', async (ctx) => {
-    if (dockerUnavailable) return ctx.skip();
-    const com = await repo!.list(query({ alertas: 'com', pageSize: 100 }));
-    const sem = await repo!.list(query({ alertas: 'sem', pageSize: 100 }));
-    expect(com.total + sem.total).toBe(25);
-  });
+  // --- Mutações (depois da paridade, pois alteram o estado do banco) ---
 
   it('markReviewed persiste a revisão no banco', async (ctx) => {
     if (dockerUnavailable) return ctx.skip();
