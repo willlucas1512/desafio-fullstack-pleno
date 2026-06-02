@@ -2,14 +2,15 @@ services:
   postgres:
     container_name: painel-db
     image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+    # credenciais vêm do .env.example (committed); .env sobrescreve se existir
+    env_file:
+      - .env.example
+      - path: .env
+        required: false
     volumes:
       - painel-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 10s
       timeout: 3s
       retries: 5
@@ -21,24 +22,22 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    # DATABASE_URL, TECHNICIAN_*, CORS_ORIGIN e JWT_EXPIRES_IN vêm do .env.example
+    # (committed); .env sobrescreve se existir. Sem credenciais inline aqui.
+    env_file:
+      - .env.example
+      - path: .env
+        required: false
     environment:
       NODE_ENV: production
       PORT: 3001
       HOST: 0.0.0.0
       LOG_LEVEL: info
-      # defaults batem com o enunciado pra `docker compose up` funcionar
-      # sem setup; sobrescreva pelo .env do compose se precisar.
-      # JWT_SECRET fica vazio de propósito: o entrypoint do container gera um
-      # segredo aleatório efêmero quando não é fornecido (nunca roda com um
-      # secret público). Defina aqui só se quiser um secret fixo entre restarts.
-      JWT_SECRET: ${JWT_SECRET:-}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
-      TECHNICIAN_EMAIL: ${TECHNICIAN_EMAIL:-tecnico@prefeitura.rio}
-      TECHNICIAN_PASSWORD: ${TECHNICIAN_PASSWORD:-}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       SEED_FILE: /app/data/seed.json
-      # persiste as revisões no Postgres; aponta pro serviço do compose
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # JWT_SECRET vazio de propósito: o entrypoint do container gera um segredo
+      # aleatório efêmero quando não é fornecido (nunca roda com secret público).
+      # Defina no .env só se quiser um secret fixo entre restarts.
+      JWT_SECRET: ${JWT_SECRET:-}
     ports:
       - '${API_HOST_PORT:-3001}:3001'
     depends_on:
@@ -67,10 +66,11 @@ services:
         # URL que o browser usa pra chamar a API (porta do host, nao o
         # nome do servico do compose). Em prod, sobrescreva no .env.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-        # credenciais de demo exibidas no login; reaproveitam as do tecnico
-        # pra sempre baterem com o que a API aceita. Em prod, deixe em branco.
-        NEXT_PUBLIC_DEMO_EMAIL: ${TECHNICIAN_EMAIL:-tecnico@prefeitura.rio}
-        NEXT_PUBLIC_DEMO_PASSWORD: ${TECHNICIAN_PASSWORD:-}
+        # Credenciais de demo exibidas no login. Vazias por padrão (sem botão);
+        # build args não leem env_file, então defina no .env pra pré-popular.
+        # Em produção, deixe em branco.
+        NEXT_PUBLIC_DEMO_EMAIL: ${NEXT_PUBLIC_DEMO_EMAIL:-}
+        NEXT_PUBLIC_DEMO_PASSWORD: ${NEXT_PUBLIC_DEMO_PASSWORD:-}
     environment:
       NODE_ENV: production
       PORT: 3000

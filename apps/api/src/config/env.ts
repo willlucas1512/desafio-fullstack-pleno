@@ -11,10 +11,10 @@ const envSchema = z.object({
   TECHNICIAN_PASSWORD: z.string().min(1),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
   SEED_FILE: z.string().default('../../data/seed.json'),
-  // Todo o estado vive no Postgres. O default aponta pro serviço do
-  // docker-compose, então `docker compose up` e o dev local funcionam sem
-  // precisar definir nada; sobrescreva via env pra apontar pra outro banco.
-  DATABASE_URL: z.string().url().default('postgres://user:pass@localhost:5432/painel'),
+  // Todo o estado vive no Postgres. Obrigatória e sem default: o valor carrega
+  // credenciais, então não fica em código. No docker-compose ela vem do
+  // `env_file`; no dev local, do `apps/api/.env` (veja `.env.example`).
+  DATABASE_URL: z.string().url(),
 });
 
 export type Env = z.infer<typeof envSchema>;

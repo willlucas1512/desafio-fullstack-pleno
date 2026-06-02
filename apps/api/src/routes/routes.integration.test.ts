@@ -15,7 +15,8 @@ const testEnv: Env = {
   TECHNICIAN_PASSWORD: 'x',
   CORS_ORIGIN: 'http://localhost:3000',
   SEED_FILE: '',
-  DATABASE_URL: 'postgres://user:pass@localhost:5432/painel',
+  // valor só satisfaz o tipo Env; a suíte usa FakeChildrenStore e nunca conecta
+  DATABASE_URL: 'postgres://test:test@localhost:5432/test_db',
 };
 
 describe('HTTP routes', () => {
