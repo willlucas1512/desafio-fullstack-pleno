@@ -175,6 +175,9 @@ export interface paths {
                                 revisado_por: string | null;
                                 /** Format: date-time */
                                 revisado_em: string | null;
+                                /** @enum {string} */
+                                prioridade: "critico" | "atencao" | "monitorar" | "sem_dados" | "ok";
+                                total_alertas: number;
                             }[];
                             pagination: {
                                 page: number;
@@ -332,6 +335,9 @@ export interface paths {
                             revisado_por: string | null;
                             /** Format: date-time */
                             revisado_em: string | null;
+                            /** @enum {string} */
+                            prioridade: "critico" | "atencao" | "monitorar" | "sem_dados" | "ok";
+                            total_alertas: number;
                         };
                     };
                 };
@@ -431,6 +437,9 @@ export interface paths {
                             revisado_por: string | null;
                             /** Format: date-time */
                             revisado_em: string | null;
+                            /** @enum {string} */
+                            prioridade: "critico" | "atencao" | "monitorar" | "sem_dados" | "ok";
+                            total_alertas: number;
                         };
                     };
                 };
@@ -514,6 +523,9 @@ export interface paths {
                             revisado_por: string | null;
                             /** Format: date-time */
                             revisado_em: string | null;
+                            /** @enum {string} */
+                            prioridade: "critico" | "atencao" | "monitorar" | "sem_dados" | "ok";
+                            total_alertas: number;
                         };
                     };
                 };

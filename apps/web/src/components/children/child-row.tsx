@@ -12,7 +12,7 @@ import {
 import Link from 'next/link';
 import { ChildAvatar } from '@/components/children/child-avatar';
 import { useReviewChild } from '@/hooks/use-children';
-import { alertsByArea, getPriority, hasNoAreaData, type Priority } from '@/lib/child-status';
+import { alertsByArea, type Priority } from '@/lib/child-status';
 import { ageInYears, AREA_SHORT_LABEL, timeAgo } from '@/lib/format';
 import type { AlertArea, Child } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -34,9 +34,9 @@ const PRIORITY_BORDER: Record<Priority, string> = {
 };
 
 export function ChildRow({ child }: { child: Child }) {
-  const priority = getPriority(child);
+  const priority: Priority = child.prioridade;
   const areas = alertsByArea(child);
-  const totalAlerts = areas.reduce((sum, a) => sum + a.count, 0);
+  const totalAlerts = child.total_alertas;
   const reviewLabel = child.revisado_em ? timeAgo(child.revisado_em) : null;
   const { mutate: review, isPending: reviewing } = useReviewChild();
 
@@ -121,7 +121,7 @@ export function ChildRow({ child }: { child: Child }) {
                   </span>
                 );
               })
-            ) : hasNoAreaData(child) ? (
+            ) : child.prioridade === 'sem_dados' ? (
               <span className="text-xs text-muted-foreground">Sem dados registrados</span>
             ) : (
               <span className="inline-flex items-center gap-1 text-xs text-success">

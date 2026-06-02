@@ -11,6 +11,7 @@ type Json<T> = T extends { content: { 'application/json': infer B } } ? B : neve
 
 // --- Entidades ---
 export type Child = Json<paths['/children/{id}']['get']['responses']['200']>;
+export type Prioridade = Child['prioridade'];
 export type HealthInfo = NonNullable<Child['saude']>;
 export type EducationInfo = NonNullable<Child['educacao']>;
 export type SocialAssistanceInfo = NonNullable<Child['assistencia_social']>;

@@ -1,7 +1,12 @@
-import type { Child, Summary } from '@/lib/types';
+import type { Child, Prioridade, Summary } from '@/lib/types';
 
+/**
+ * Constrói uma `Child` de teste. `prioridade` e `total_alertas` são derivados
+ * dos dados (espelhando a regra do backend) pra que qualquer override de área
+ * mantenha os campos coerentes — mas um override explícito ainda tem precedência.
+ */
 export function makeChild(overrides: Partial<Child> = {}): Child {
-  return {
+  const base: Child = {
     id: 'c001',
     nome: 'Ana Clara Mendes',
     data_nascimento: '2020-03-15',
@@ -17,7 +22,30 @@ export function makeChild(overrides: Partial<Child> = {}): Child {
     revisado: false,
     revisado_por: null,
     revisado_em: null,
+    prioridade: 'ok',
+    total_alertas: 0,
     ...overrides,
+  };
+  const counts = [base.saude, base.educacao, base.assistencia_social].map(
+    (a) => a?.alertas.length ?? 0,
+  );
+  const total = counts.reduce((s, n) => s + n, 0);
+  const areasWithAlerts = counts.filter((n) => n > 0).length;
+  const noData = base.saude === null && base.educacao === null && base.assistencia_social === null;
+  const prioridade: Prioridade =
+    areasWithAlerts === 3
+      ? 'critico'
+      : areasWithAlerts === 2
+        ? 'atencao'
+        : areasWithAlerts === 1
+          ? 'monitorar'
+          : noData
+            ? 'sem_dados'
+            : 'ok';
+  return {
+    ...base,
+    total_alertas: overrides.total_alertas ?? total,
+    prioridade: overrides.prioridade ?? prioridade,
   };
 }
 
