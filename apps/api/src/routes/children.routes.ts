@@ -1,13 +1,13 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { childSchema, type Child } from '../domain/child.js';
 import { errorResponseSchema } from '../domain/http.js';
+import { listChildrenQuerySchema, type ListChildrenQuery } from '../domain/child-query.js';
 import {
-  listChildrenQuerySchema,
+  childResponseSchema,
   listChildrenResultSchema,
-  type ChildrenService,
-  type ListChildrenQuery,
-} from '../services/children.service.js';
+  type ChildResponse,
+} from '../domain/child-status.js';
+import type { ChildrenService } from '../services/children.service.js';
 
 const childIdParamSchema = z.object({ id: z.string().min(1) });
 type ChildIdParam = z.infer<typeof childIdParamSchema>;
@@ -66,7 +66,7 @@ export function createChildrenRoutes({ childrenService }: ChildrenRoutesOptions)
         schema: protectedRoute({
           summary: 'Detalhe completo de uma criança',
           params: childIdParamSchema,
-          response: { 200: childSchema, 401: errorResponseSchema, 404: errorResponseSchema },
+          response: { 200: childResponseSchema, 401: errorResponseSchema, 404: errorResponseSchema },
         }),
       },
       async (request, reply) => {
@@ -82,12 +82,12 @@ export function createChildrenRoutes({ childrenService }: ChildrenRoutesOptions)
         schema: protectedRoute({
           summary: 'Registra que o técnico autenticado revisou o caso',
           params: childIdParamSchema,
-          response: { 200: childSchema, 401: errorResponseSchema, 404: errorResponseSchema },
+          response: { 200: childResponseSchema, 401: errorResponseSchema, 404: errorResponseSchema },
         }),
       },
       async (request, reply) => {
         const reviewer = request.user.preferred_username;
-        const updated: Child | null = await childrenService.markReviewed(request.params.id, reviewer);
+        const updated: ChildResponse | null = await childrenService.markReviewed(request.params.id, reviewer);
         if (!updated) return notFound(reply, request.params.id);
         request.log.info({ childId: updated.id, reviewer }, 'caso revisado');
         return updated;
@@ -101,11 +101,11 @@ export function createChildrenRoutes({ childrenService }: ChildrenRoutesOptions)
         schema: protectedRoute({
           summary: 'Desfaz a revisão de um caso',
           params: childIdParamSchema,
-          response: { 200: childSchema, 401: errorResponseSchema, 404: errorResponseSchema },
+          response: { 200: childResponseSchema, 401: errorResponseSchema, 404: errorResponseSchema },
         }),
       },
       async (request, reply) => {
-        const updated: Child | null = await childrenService.unmarkReviewed(request.params.id);
+        const updated: ChildResponse | null = await childrenService.unmarkReviewed(request.params.id);
         if (!updated) return notFound(reply, request.params.id);
         request.log.info(
           { childId: updated.id, reviewer: request.user.preferred_username },

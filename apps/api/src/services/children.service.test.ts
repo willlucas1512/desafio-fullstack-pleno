@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FakeChildrenStore } from '../test/fake-children-store.js';
 import { fixtureChildren } from '../test/fixtures.js';
-import { ChildrenService, listChildrenQuerySchema } from './children.service.js';
+import { listChildrenQuerySchema } from '../domain/child-query.js';
+import { ChildrenService } from './children.service.js';
 
 const defaultQuery = (override: Record<string, unknown> = {}) =>
   listChildrenQuerySchema.parse(override);

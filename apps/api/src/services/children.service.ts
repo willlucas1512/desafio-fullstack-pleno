@@ -1,32 +1,17 @@
-import { z } from 'zod';
+import {
+  toChildResponse,
+  type ChildResponse,
+  type ListChildrenResult,
+} from '../domain/child-status.js';
 import type { ListChildrenQuery } from '../domain/child-query.js';
-import { childSchema, type Child } from '../domain/child.js';
+import type { Summary } from '../domain/summary.js';
 import type { ChildrenStore } from '../repositories/children-store.js';
 
-export {
-  listChildrenQuerySchema,
-  orderBySchema,
-  alertFilterSchema,
-  type ListChildrenQuery,
-  type OrderBy,
-  type AlertFilter,
-} from '../domain/child-query.js';
-
-export const paginationSchema = z.object({
-  page: z.number().int().positive(),
-  pageSize: z.number().int().positive(),
-  total: z.number().int().nonnegative(),
-  totalPages: z.number().int().positive(),
-});
-
-export const listChildrenResultSchema = z.object({
-  items: z.array(childSchema),
-  pagination: paginationSchema,
-});
-
-export type Pagination = z.infer<typeof paginationSchema>;
-export type ListChildrenResult = z.infer<typeof listChildrenResultSchema>;
-
+/**
+ * Orquestra a listagem e decora as entidades de domínio com os campos derivados
+ * de apresentação (`prioridade`, `total_alertas`) antes de devolver à camada
+ * HTTP. A regra de prioridade é única (ver `domain/child-status.ts`).
+ */
 export class ChildrenService {
   constructor(private readonly repo: ChildrenStore) {}
 
@@ -34,21 +19,28 @@ export class ChildrenService {
     const { items, total } = await this.repo.list(query);
     const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
     return {
-      items,
+      items: items.map(toChildResponse),
       pagination: { page: query.page, pageSize: query.pageSize, total, totalPages },
     };
   }
 
-  findById(id: string): Promise<Child | null> {
-    return this.repo.findById(id);
+  summary(): Promise<Summary> {
+    return this.repo.summary();
   }
 
-  markReviewed(id: string, reviewedBy: string): Promise<Child | null> {
-    return this.repo.markReviewed(id, reviewedBy);
+  async findById(id: string): Promise<ChildResponse | null> {
+    const child = await this.repo.findById(id);
+    return child ? toChildResponse(child) : null;
   }
 
-  unmarkReviewed(id: string): Promise<Child | null> {
-    return this.repo.unmarkReviewed(id);
+  async markReviewed(id: string, reviewedBy: string): Promise<ChildResponse | null> {
+    const child = await this.repo.markReviewed(id, reviewedBy);
+    return child ? toChildResponse(child) : null;
+  }
+
+  async unmarkReviewed(id: string): Promise<ChildResponse | null> {
+    const child = await this.repo.unmarkReviewed(id);
+    return child ? toChildResponse(child) : null;
   }
 
   listNeighborhoods(): Promise<string[]> {

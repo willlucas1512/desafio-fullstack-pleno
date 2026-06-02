@@ -1,12 +1,13 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { summarySchema } from '../domain/summary.js';
 import { errorResponseSchema } from '../domain/http.js';
-import { type SummaryService, summarySchema } from '../services/summary.service.js';
+import type { ChildrenService } from '../services/children.service.js';
 
 export interface SummaryRoutesOptions {
-  summaryService: SummaryService;
+  childrenService: ChildrenService;
 }
 
-export function createSummaryRoutes({ summaryService }: SummaryRoutesOptions): FastifyPluginAsync {
+export function createSummaryRoutes({ childrenService }: SummaryRoutesOptions): FastifyPluginAsync {
   const plugin: FastifyPluginAsync = async (app: FastifyInstance) => {
     app.get(
       '/summary',
@@ -19,7 +20,7 @@ export function createSummaryRoutes({ summaryService }: SummaryRoutesOptions): F
           response: { 200: summarySchema, 401: errorResponseSchema },
         },
       },
-      () => summaryService.build(),
+      () => childrenService.summary(),
     );
   };
   return plugin;

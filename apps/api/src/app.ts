@@ -24,7 +24,6 @@ import { createChildrenRoutes } from './routes/children.routes.js';
 import { createSummaryRoutes } from './routes/summary.routes.js';
 import { createAuthService, type AuthService } from './services/auth.service.js';
 import { ChildrenService } from './services/children.service.js';
-import { SummaryService } from './services/summary.service.js';
 
 export interface BuildAppOptions {
   env: Env;
@@ -131,11 +130,10 @@ export async function buildApp({ env, childrenRepo }: BuildAppOptions): Promise<
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
   const childrenService = new ChildrenService(childrenRepo);
-  const summaryService = new SummaryService(childrenRepo);
 
   await app.register(createAuthRoutes({ authService }));
   await app.register(createChildrenRoutes({ childrenService }));
-  await app.register(createSummaryRoutes({ summaryService }));
+  await app.register(createSummaryRoutes({ childrenService }));
 
   return app;
 }

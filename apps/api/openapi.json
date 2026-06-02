@@ -391,6 +391,20 @@
                             "type": "string",
                             "format": "date-time",
                             "nullable": true
+                          },
+                          "prioridade": {
+                            "type": "string",
+                            "enum": [
+                              "critico",
+                              "atencao",
+                              "monitorar",
+                              "sem_dados",
+                              "ok"
+                            ]
+                          },
+                          "total_alertas": {
+                            "type": "integer",
+                            "minimum": 0
                           }
                         },
                         "required": [
@@ -404,7 +418,9 @@
                           "assistencia_social",
                           "revisado",
                           "revisado_por",
-                          "revisado_em"
+                          "revisado_em",
+                          "prioridade",
+                          "total_alertas"
                         ],
                         "additionalProperties": false
                       }
@@ -751,6 +767,20 @@
                       "type": "string",
                       "format": "date-time",
                       "nullable": true
+                    },
+                    "prioridade": {
+                      "type": "string",
+                      "enum": [
+                        "critico",
+                        "atencao",
+                        "monitorar",
+                        "sem_dados",
+                        "ok"
+                      ]
+                    },
+                    "total_alertas": {
+                      "type": "integer",
+                      "minimum": 0
                     }
                   },
                   "required": [
@@ -764,7 +794,9 @@
                     "assistencia_social",
                     "revisado",
                     "revisado_por",
-                    "revisado_em"
+                    "revisado_em",
+                    "prioridade",
+                    "total_alertas"
                   ],
                   "additionalProperties": false
                 }
@@ -999,6 +1031,20 @@
                       "type": "string",
                       "format": "date-time",
                       "nullable": true
+                    },
+                    "prioridade": {
+                      "type": "string",
+                      "enum": [
+                        "critico",
+                        "atencao",
+                        "monitorar",
+                        "sem_dados",
+                        "ok"
+                      ]
+                    },
+                    "total_alertas": {
+                      "type": "integer",
+                      "minimum": 0
                     }
                   },
                   "required": [
@@ -1012,7 +1058,9 @@
                     "assistencia_social",
                     "revisado",
                     "revisado_por",
-                    "revisado_em"
+                    "revisado_em",
+                    "prioridade",
+                    "total_alertas"
                   ],
                   "additionalProperties": false
                 }
@@ -1245,6 +1293,20 @@
                       "type": "string",
                       "format": "date-time",
                       "nullable": true
+                    },
+                    "prioridade": {
+                      "type": "string",
+                      "enum": [
+                        "critico",
+                        "atencao",
+                        "monitorar",
+                        "sem_dados",
+                        "ok"
+                      ]
+                    },
+                    "total_alertas": {
+                      "type": "integer",
+                      "minimum": 0
                     }
                   },
                   "required": [
@@ -1258,7 +1320,9 @@
                     "assistencia_social",
                     "revisado",
                     "revisado_por",
-                    "revisado_em"
+                    "revisado_em",
+                    "prioridade",
+                    "total_alertas"
                   ],
                   "additionalProperties": false
                 }
