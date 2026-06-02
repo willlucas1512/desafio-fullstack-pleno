@@ -1,17 +1,13 @@
-import Fastify, {
-  type FastifyError,
-  type FastifyInstance,
-  type FastifyReply,
-  type FastifyRequest,
-} from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import { ZodError } from 'zod';
 import type { Env } from './config/env.js';
+import { makeDocsBasicAuth } from './plugins/docs-basic-auth.js';
+import { errorHandler } from './plugins/error-handler.js';
 import { jwtPlugin } from './plugins/jwt.plugin.js';
 import {
   jsonSchemaTransform,
@@ -22,7 +18,7 @@ import type { ChildrenStore } from './repositories/children-store.js';
 import { createAuthRoutes } from './routes/auth.routes.js';
 import { createChildrenRoutes } from './routes/children.routes.js';
 import { createSummaryRoutes } from './routes/summary.routes.js';
-import { createAuthService, type AuthService } from './services/auth.service.js';
+import { createAuthService } from './services/auth.service.js';
 import { ChildrenService } from './services/children.service.js';
 
 export interface BuildAppOptions {
@@ -49,25 +45,7 @@ export async function buildApp({ env, childrenRepo }: BuildAppOptions): Promise<
 
   app.setValidatorCompiler(zodValidatorCompiler);
   app.setSerializerCompiler(zodSerializerCompiler);
-  app.setErrorHandler<FastifyError>((error, request, reply) => {
-    const zodError = toZodError(error);
-    if (zodError) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Requisição inválida',
-        details: zodError.flatten().fieldErrors,
-      });
-    }
-
-    const status = error.statusCode ?? 500;
-    if (status >= 500) request.log.error(error);
-    return reply.code(status).send({
-      statusCode: status,
-      error: error.name || 'Internal Server Error',
-      message: status >= 500 ? 'Erro interno' : error.message,
-    });
-  });
+  app.setErrorHandler(errorHandler);
 
   await app.register(sensible);
   await app.register(helmet, {
@@ -136,32 +114,4 @@ export async function buildApp({ env, childrenRepo }: BuildAppOptions): Promise<
   await app.register(createSummaryRoutes({ childrenService }));
 
   return app;
-}
-
-/** O validador devolve o ZodError direto; o Fastify pode envolvê-lo em `cause`. */
-function toZodError(error: unknown): ZodError | null {
-  if (error instanceof ZodError) return error;
-  const cause = (error as { cause?: unknown }).cause;
-  if (cause instanceof ZodError) return cause;
-  return null;
-}
-
-/** Hook de HTTP Basic Auth para proteger a UI do Swagger reusando o authService. */
-function makeDocsBasicAuth(authService: AuthService) {
-  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const header = request.headers.authorization;
-    if (header?.startsWith('Basic ')) {
-      const decoded = Buffer.from(header.slice('Basic '.length), 'base64').toString('utf-8');
-      const sep = decoded.indexOf(':');
-      if (sep !== -1) {
-        const user = decoded.slice(0, sep);
-        const pass = decoded.slice(sep + 1);
-        if (authService.authenticate(user, pass)) return;
-      }
-    }
-    await reply
-      .header('WWW-Authenticate', 'Basic realm="API docs", charset="UTF-8"')
-      .code(401)
-      .send({ statusCode: 401, error: 'Unauthorized', message: 'Autenticação necessária' });
-  };
 }
