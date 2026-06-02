@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fixtureChildren } from '../test/fixtures.js';
 import {
-  countMissingAreas,
   hasAnyAlert,
   hasEducationAlerts,
   hasHealthAlerts,
@@ -39,12 +38,6 @@ describe('coverage helpers', () => {
   it('hasNoAreaData only true when all three are null', () => {
     expect(hasNoAreaData(c004!)).toBe(true);
     expect(hasNoAreaData(c003!)).toBe(false);
-  });
-
-  it('countMissingAreas tallies null areas', () => {
-    expect(countMissingAreas(c001!)).toBe(0);
-    expect(countMissingAreas(c003!)).toBe(1);
-    expect(countMissingAreas(c004!)).toBe(3);
   });
 });
 

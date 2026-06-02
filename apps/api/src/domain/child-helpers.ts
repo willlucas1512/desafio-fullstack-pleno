@@ -39,14 +39,6 @@ export function hasNoAreaData(child: Child): boolean {
   return child.saude === null && child.educacao === null && child.assistencia_social === null;
 }
 
-export function countMissingAreas(child: Child): number {
-  let count = 0;
-  if (child.saude === null) count++;
-  if (child.educacao === null) count++;
-  if (child.assistencia_social === null) count++;
-  return count;
-}
-
 const DIACRITICS = /[̀-ͯ]/g;
 
 export function normalize(value: string): string {
