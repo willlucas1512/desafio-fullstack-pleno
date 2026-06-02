@@ -1,0 +1,4 @@
+# Scripts de shell precisam de LF: rodam dentro de containers Linux e o
+# shebang quebra com CRLF (kernel não encontra o interpretador "/bin/sh\r").
+# Garante LF mesmo com core.autocrlf=true no checkout Windows.
+*.sh text eol=lf
