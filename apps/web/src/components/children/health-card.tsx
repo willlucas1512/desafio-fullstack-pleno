@@ -3,7 +3,9 @@ import { EmptyArea } from '@/components/status/empty-area';
 import { resolveFieldStatus } from '@/lib/field-status';
 import { formatDateBR } from '@/lib/format';
 import type { HealthInfo } from '@/lib/types';
-import { AreaCardShell, AreaField, AreaFields, FieldStatus } from './area-card-shell';
+import { AreaCardShell } from './area-card-shell';
+import { AreaField, AreaFields } from './area-field';
+import { FieldStatus } from './field-status';
 
 export function HealthCard({ data }: { data: HealthInfo | null }) {
   if (!data) return <EmptyArea area="saude" />;

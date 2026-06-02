@@ -2,7 +2,9 @@ import { AlertTriangle, CalendarCheck, GraduationCap, School } from 'lucide-reac
 import { EmptyArea } from '@/components/status/empty-area';
 import { resolveFieldStatus } from '@/lib/field-status';
 import type { EducationInfo } from '@/lib/types';
-import { AreaCardShell, AreaField, AreaFields, AreaMeter } from './area-card-shell';
+import { AreaCardShell } from './area-card-shell';
+import { AreaField, AreaFields } from './area-field';
+import { AreaMeter } from './area-meter';
 
 const FREQUENCIA_MINIMA = 75;
 
