@@ -4,15 +4,16 @@ Painel para os técnicos da Prefeitura acompanharem crianças em situação de v
 
 ## TL;DR
 
-- **Ver no ar:** [painel-social-pcrj.vercel.app](https://painel-social-pcrj.vercel.app/), entrando com `tecnico@prefeitura.rio` / `painel@2024`.
-- **Rodar local:** `docker compose up` e abrir [localhost:3000](http://localhost:3000) com as mesmas credenciais.
-- **Como é montado:** monorepo com API em Fastify e site em Next.js. O login fica num cookie que o JavaScript da página não consegue ler, e quem fala com a API é o servidor do Next, não o navegador.
-- **Onde mora o dado:** tudo no Postgres, cada criança guardada como um documento JSON. Filtro, ordenação e os números do dashboard saem de uma única regra escrita em TypeScript — a mesma que os testes usam.
-- **O que cuidei além do básico:** deixei as decisões e o porquê de cada uma escritas aqui embaixo, tem teste nos três níveis (regra, API e navegador) e o painel funciona só no teclado e em tela de celular.
+- **No ar:** [painel-social-pcrj.vercel.app](https://painel-social-pcrj.vercel.app/) — login `tecnico@prefeitura.rio` / `painel@2024`.
+- **Local:** `docker compose up` sobe tudo, abre em [localhost:3000](http://localhost:3000) com as mesmas credenciais.
+- **Dados parciais e contraditórios (o miolo do desafio):** nem toda criança tem as três áreas, e o seed traz casos em que o dado bruto contradiz o alerta curado. O painel trata cada caso de forma útil — estado vazio explícito no lugar de campo em branco, e o alerta tem precedência sobre o dado bruto.
+- **Pensado pro técnico em campo:** uso várias vezes ao dia, muitas no celular. Responsivo de 375px a 1440px, alertas por área visíveis de relance e "marcar como revisado" com feedback na hora.
+- **Auth (o básico do edital):** JWT com `preferred_username`, rotas protegidas e redirect quando o token expira — e, de extra, o token vive num cookie `HttpOnly` atrás de um BFF (detalhado abaixo).
+- **Extras e decisões:** testes nos três níveis (unidade, componente, E2E), heatmap por bairro, dark mode e WCAG AA; o porquê de cada decisão está logo abaixo.
 
 ## Índice
 
-- [Telas](#telas) · [Como rodar](#como-rodar) · [Stack](#stack) · [API](#api)
+- [Telas](#telas) · [Como rodar](#como-rodar) · [Stack](#stack) · [O que foi entregue](#o-que-foi-entregue) · [API](#api)
 - [Decisões e trade-offs](#decisões-e-trade-offs) · [Testes](#testes) · [O que faria diferente](#o-que-faria-diferente-com-mais-tempo)
 
 ## Telas
@@ -69,6 +70,45 @@ Os defaults do `docker-compose.yml` e do `apps/api/.env.example` já batem com a
 | Formulários | react-hook-form + Zod | Zod já é usado no back, então a validação é a mesma stack dos dois lados. |
 | Gráficos | Recharts | |
 | Infra | Docker Compose (multi-stage) | `docker compose up` sobe tudo do zero. |
+
+## O que foi entregue
+
+**Obrigatórios — backend**
+
+- [x] `POST /auth/token` com JWT contendo `preferred_username`
+- [x] `GET /children` com filtros (bairro, alertas, revisão) e paginação
+- [x] `GET /children/:id` com detalhe completo
+- [x] `GET /summary` com totais, alertas por área e revisados
+- [x] `PATCH /children/:id/review` exigindo JWT
+- [x] Carga do seed documentada (Postgres, cada criança em `JSONB`)
+
+**Obrigatórios — frontend**
+
+- [x] Login com proteção de rota e redirect quando o JWT expira
+- [x] Dashboard com cards de resumo a partir do `/summary`
+- [x] Lista de crianças com filtros funcionais e paginação
+- [x] Detalhe com o status nas três áreas
+- [x] Marcar como revisado com feedback visual
+- [x] Dados incompletos tratados de forma útil, sem campo em branco
+- [x] Responsivo de 375px a 1440px
+
+**Obrigatórios — infra**
+
+- [x] `docker compose up` sobe a aplicação inteira sem configuração extra
+
+**Diferenciais** (opcionais no edital)
+
+- [x] shadcn/ui nos componentes do front
+- [x] Testes nos três níveis: Vitest (back), Testing Library (componentes), Playwright (E2E)
+- [x] Acessibilidade: navegação por teclado, ARIA labels e contraste pensado pra WCAG AA
+- [x] Deploy público (Vercel + Render)
+- [x] Visualizações: gráfico de alertas por área (Recharts) e heatmap por bairro
+- [x] Dark mode
+
+**Além do que foi pedido**
+
+- [x] Desfazer revisão e trilha de auditoria append-only (`GET /children/:id/review-history`)
+- [x] Sliding session: o JWT se renova sozinho durante o uso, sem forçar novo login
 
 ## API
 
