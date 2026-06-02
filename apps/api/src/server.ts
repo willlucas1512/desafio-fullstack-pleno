@@ -1,6 +1,6 @@
-import { buildApp } from './app.js';
-import { loadEnv } from './config/env.js';
-import { PostgresChildrenRepository } from './repositories/postgres-children.repository.js';
+import { buildApp } from "./app.js";
+import { loadEnv } from "./config/env.js";
+import { PostgresChildrenRepository } from "./repositories/postgres-children.repository.js";
 
 async function main(): Promise<void> {
   const env = loadEnv();
@@ -14,7 +14,7 @@ async function main(): Promise<void> {
     await app.listen({ port: env.PORT, host: env.HOST });
     app.log.info(`API listening on http://${env.HOST}:${env.PORT}`);
     const count = (await childrenRepo.listAll()).length;
-    app.log.info(`${count} crianças no Postgres (estado persistido)`);
+    app.log.info(`${count} crianças no Postgres`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
@@ -27,8 +27,8 @@ async function main(): Promise<void> {
     process.exit(0);
   };
 
-  process.on('SIGTERM', () => void shutdown('SIGTERM'));
-  process.on('SIGINT', () => void shutdown('SIGINT'));
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 
 void main();

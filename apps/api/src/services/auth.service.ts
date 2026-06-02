@@ -1,4 +1,7 @@
-import { createHash, timingSafeEqual as cryptoTimingSafeEqual } from 'node:crypto';
+import {
+  createHash,
+  timingSafeEqual as cryptoTimingSafeEqual,
+} from "node:crypto";
 
 export interface TechnicianCredentials {
   email: string;
@@ -9,18 +12,22 @@ export interface AuthService {
   authenticate(email: string, password: string): boolean;
 }
 
-export function createAuthService(credentials: TechnicianCredentials): AuthService {
+export function createAuthService(
+  credentials: TechnicianCredentials,
+): AuthService {
   return {
     authenticate(email: string, password: string): boolean {
-      return timingSafeEqual(email, credentials.email) && timingSafeEqual(password, credentials.password);
+      return (
+        timingSafeEqual(email, credentials.email) &&
+        timingSafeEqual(password, credentials.password)
+      );
     },
   };
 }
 
-// Compara via SHA-256 de comprimento fixo: timingSafeEqual exige buffers do mesmo
-// tamanho, e o hash evita vazar o comprimento do segredo pelo tempo de resposta.
+// Compara via SHA-256 de comprimento fixo.
 function timingSafeEqual(a: string, b: string): boolean {
-  const ha = createHash('sha256').update(a).digest();
-  const hb = createHash('sha256').update(b).digest();
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
   return cryptoTimingSafeEqual(ha, hb);
 }

@@ -2,7 +2,6 @@ services:
   postgres:
     container_name: painel-db
     image: postgres:16-alpine
-    # credenciais vêm do .env.example (committed); .env sobrescreve se existir
     env_file:
       - .env.example
       - path: .env
@@ -10,7 +9,7 @@ services:
     volumes:
       - painel-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 10s
       timeout: 3s
       retries: 5
@@ -22,8 +21,6 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    # DATABASE_URL, TECHNICIAN_*, CORS_ORIGIN e JWT_EXPIRES_IN vêm do .env.example
-    # (committed); .env sobrescreve se existir. Sem credenciais inline aqui.
     env_file:
       - .env.example
       - path: .env
@@ -34,21 +31,17 @@ services:
       HOST: 0.0.0.0
       LOG_LEVEL: info
       SEED_FILE: /app/data/seed.json
-      # JWT_SECRET vazio de propósito: o entrypoint do container gera um segredo
-      # aleatório efêmero quando não é fornecido (nunca roda com secret público).
-      # Defina no .env só se quiser um secret fixo entre restarts.
-      JWT_SECRET: ${JWT_SECRET:-}
     ports:
-      - '${API_HOST_PORT:-3001}:3001'
+      - "${API_HOST_PORT:-3001}:3001"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
       test:
         [
-          'CMD',
-          'node',
-          '-e',
+          "CMD",
+          "node",
+          "-e",
           "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
@@ -63,29 +56,24 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        # Credenciais de demo exibidas no login. Vazias por padrão (sem botão);
-        # build args não leem env_file, então defina no .env pra pré-popular.
-        # Em produção, deixe em branco.
         NEXT_PUBLIC_DEMO_EMAIL: ${NEXT_PUBLIC_DEMO_EMAIL:-}
         NEXT_PUBLIC_DEMO_PASSWORD: ${NEXT_PUBLIC_DEMO_PASSWORD:-}
     environment:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      # O BFF (server-side) fala com a API pela rede interna do compose. O browser
-      # nunca acessa a API direto — só o proxy same-origin /api/proxy.
       API_URL: http://api:3001
     ports:
-      - '${WEB_HOST_PORT:-3000}:3000'
+      - "${WEB_HOST_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
       test:
         [
-          'CMD',
-          'node',
-          '-e',
+          "CMD",
+          "node",
+          "-e",
           "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 15s

@@ -12,7 +12,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: '3001'
+        value: "3001"
       - key: HOST
         value: 0.0.0.0
       - key: LOG_LEVEL
@@ -27,14 +27,10 @@ services:
         fromDatabase:
           name: painel-db
           property: connectionString
-      # Credenciais do técnico — devem ser configuradas no painel do Render
-      # antes do primeiro deploy (sync:false bloqueia o deploy até serem
-      # preenchidas). Os valores estão no enunciado público do desafio.
       - key: TECHNICIAN_EMAIL
         sync: false
       - key: TECHNICIAN_PASSWORD
         sync: false
-      # URL pública do frontend (Vercel) — definir após o deploy do front.
       - key: CORS_ORIGIN
         sync: false
 
