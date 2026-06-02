@@ -23,6 +23,10 @@ services:
         value: 1h
       - key: SEED_FILE
         value: /app/data/seed.json
+      - key: DATABASE_URL
+        fromDatabase:
+          name: painel-db
+          property: connectionString
       # Credenciais do técnico — devem ser configuradas no painel do Render
       # antes do primeiro deploy (sync:false bloqueia o deploy até serem
       # preenchidas). Os valores estão no enunciado público do desafio.
@@ -33,3 +37,8 @@ services:
       # URL pública do frontend (Vercel) — definir após o deploy do front.
       - key: CORS_ORIGIN
         sync: false
+
+databases:
+  - name: painel-db
+    plan: free
+    region: oregon
