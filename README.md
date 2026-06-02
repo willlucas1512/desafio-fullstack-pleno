@@ -28,7 +28,7 @@ Abre [http://localhost:3000](http://localhost:3000) e loga.
 | Camada | Tecnologia | Por quê |
 |---|---|---|
 | Backend | Node.js 22 + TypeScript + Fastify | Schema validation embutido, tipos alinhados com o front |
-| Auth | `@fastify/jwt` HS256 | Padrão |
+| Auth | `@fastify/jwt` HS256 + BFF no Next (cookie httpOnly) | JWT na API; o web guarda o token num cookie httpOnly e proxia same-origin (§3) |
 | Persistência | Postgres | Fonte única; `data/seed.json` carrega no primeiro boot (idempotente), então revisões sobrevivem a reinícios |
 | Frontend | Next.js 15 (App Router) + React 18 + TypeScript | Especificado |
 | UI | Tailwind + shadcn/ui + lucide | Componentes copiados pra `src/components/ui/`, controle total |
@@ -127,10 +127,12 @@ Retorna a criança atualizada (`revisado: true`, `revisado_por` = email do JWT, 
 /children/[id] → 3 cards (saúde/educação/assistência) + ação de revisar
 ```
 
-### Proteção de rotas
-Duas camadas. A real é o **servidor**: a API exige `Bearer` em todo endpoint de dados (`preHandler: app.authenticate`), então nenhum dado sai sem token mesmo acessando a API direto. A do front é UX: o layout `(dashboard)/layout.tsx` lê o JWT do `localStorage`, decoda (sem verificar assinatura — quem verifica é o server), checa `exp` e, sem token ou expirado, manda pra `/login?next=<path>`. O `?next=` só aceita caminho interno (bloqueia open redirect).
+### Auth: BFF com cookie httpOnly
+O token **nunca** chega ao JavaScript do browser. O login posta em `POST /api/auth/login` (Route Handler do Next), que repassa as credenciais à API, recebe o JWT e o grava num cookie `HttpOnly; SameSite=Lax; Secure` (em prod). As chamadas de dados passam pelo proxy same-origin `/api/proxy/[...path]`, que lê o cookie no servidor e injeta o `Authorization: Bearer` antes de falar com a API — o browser só vê requisições same-origin, sem token exposto a XSS.
 
-O interceptor do Axios cobre o token expirando durante a sessão: qualquer 401 limpa storage e redireciona pra `/login?reason=expired`.
+Proteção de rotas em duas camadas. A real continua no **servidor**: a API exige `Bearer` em todo endpoint de dados (`preHandler: app.authenticate`), então nenhum dado sai sem token. No front, o `middleware.ts` (edge) roda antes de renderizar: decoda o cookie (sem verificar assinatura — quem verifica é a API), checa `exp` e, em rota protegida sem sessão válida, redireciona pra `/login?next=<path>` antes de qualquer flash de tela. O `?next=` só aceita caminho interno (bloqueia open redirect); logado, `/login` redireciona pro dashboard.
+
+O proxy cobre o token expirando no meio da sessão: qualquer 401 da API limpa o cookie, e o interceptor do Axios manda pra `/login?reason=expired`.
 
 ### Estado/cache
 TanStack Query por feature (`useChildren`, `useSummary`, `useChild`, `useReviewChild`). `placeholderData: (prev) => prev` evita flash na paginação. A mutation de revisar atualiza o cache da criança e invalida lista + summary.
@@ -163,29 +165,29 @@ npm run test:e2e --workspace=apps/web    # Playwright (npx playwright install ch
 npm run typecheck --workspaces
 ```
 
-- **Back:** auth (constant-time), filtros (acento-insensitive, composição), paginação, agregação do `/summary`, caminhos HTTP (200/400/401/404) via `inject()`, parse do seed, e o repositório Postgres num banco real via Testcontainers (auto-pula se o Docker não estiver disponível).
+- **Back:** auth (constant-time), filtros (acento-insensitive, composição), paginação, agregação do `/summary`, caminhos HTTP (200/400/401/404) via `inject()`, parse do seed, e o repositório Postgres num banco real via Testcontainers. A suíte de Postgres inclui um **matriz de paridade** que confronta `PostgresChildrenRepository` com a especificação canônica (`domain/child-query.ts`) em cada combinação de filtro/ordenação/paginação. Fora de CI, pula sem Docker; **em CI (`process.env.CI`) falha alto** se o Docker não estiver disponível, pra nunca dar verde sem exercitar o caminho de produção.
 - **Front:** formatters (data, idade timezone-safe, JWT decode), precedência de status de campo (`resolveFieldStatus`), EmptyArea, KPI card, heatmap, cobertura e ReviewAction com mutation mock.
 - **E2E:** redirect não-autenticado, login ok/erro, filtros, detalhe com 3 EmptyArea (c015), revisão com feedback, navegação por teclado, landmarks ARIA, layout a 375px sem overflow.
 
-A listagem (filtro/ordenação/paginação) tem uma definição canônica em `domain/child-query.ts` — o `FakeChildrenStore` dos testes e o repositório Postgres compartilham essa mesma especificação.
+A listagem (filtro/ordenação/paginação) tem uma definição canônica em `domain/child-query.ts` — o `FakeChildrenStore` dos testes e o repositório Postgres compartilham essa mesma especificação, e a matriz de paridade acima garante que o SQL de produção não divirja dela.
 
 ## Decisões
 
 ### 1. Postgres como fonte única
 Todos os dados vivem na tabela `children` (escalares em colunas, as áreas saúde/educação/assistência em `JSONB`, e as colunas de revisão). O `data/seed.json` carrega no **primeiro boot**, de forma idempotente — se a tabela já tem dados, não reescreve, então o que o técnico revisou sobrevive a reinícios.
 
-`ChildrenStore` é uma interface (porta de persistência) com uma implementação de produção, `PostgresChildrenRepository`, onde filtro/ordenação/paginação rodam em SQL (`unaccent` pra busca sem acento, expressão JSONB pra contar alertas). Os testes injetam um `FakeChildrenStore` in-memory que reusa a mesma especificação de listagem (`domain/child-query.ts`), então não precisam de banco. As áreas viram `JSONB` em vez de tabelas próprias porque são read-only e sempre consumidas como o objeto inteiro — normalizar seria over-engineering.
+`ChildrenStore` é uma interface (porta de persistência) com uma implementação de produção, `PostgresChildrenRepository`, onde filtro/ordenação/paginação rodam em SQL (`unaccent` pra busca sem acento, expressão JSONB pra contar alertas). O `/summary` também agrega no banco — `count(*) FILTER (...)` pras contagens globais e `GROUP BY bairro` pro recorte por bairro — em vez de puxar todas as linhas e somar em memória. Os testes injetam um `FakeChildrenStore` in-memory que reusa a mesma especificação de listagem (`domain/child-query.ts`), então não precisam de banco. As áreas viram `JSONB` em vez de tabelas próprias porque são read-only e sempre consumidas como o objeto inteiro — normalizar seria over-engineering.
 
 O schema é versionado em migrations idempotentes (`repositories/migrations.ts`), aplicadas no boot e registradas numa tabela `schema_migrations`. Ficam embutidas no código (em vez de `.sql` soltos) pra evitar problemas de path no container.
 
 ### 2. Node + Fastify
 Mesma stack do front, tipos do domínio alinhados, e Fastify entrega schema validation embutido. Go daria binário único e menos RAM, mas pra essa escala é imperceptível.
 
-### 3. JWT em localStorage (vs cookie httpOnly)
-Mais simples e adequado ao **deploy split** (web na Vercel, API no Render — domínios diferentes): cookie cross-site exigiria `SameSite=None; Secure` + CORS credenciado, justo o que os browsers vêm restringindo. O risco do localStorage é XSS, mitigado por zero HTML de input do usuário, escape default do React, ausência de `dangerouslySetInnerHTML` e CSP restritiva. Same-origin, o caminho seria cookie `HttpOnly; SameSite=Lax` + CSRF token.
+### 3. BFF no Next com cookie httpOnly (vs JWT no localStorage)
+O JWT vive num cookie `HttpOnly; SameSite=Lax; Secure`, fora do alcance do JavaScript — imune a roubo por XSS. O browser nunca fala com a API direto: os Route Handlers (`/api/auth/*`) e o proxy `/api/proxy/[...path]` são o **BFF**, que lê o cookie no servidor e injeta o `Bearer`. Isso resolve o atrito do **deploy split** (web na Vercel, API no Render): como o BFF é same-origin com o web, o cookie é first-party (`SameSite=Lax`, sem `None`/CORS credenciado) e a API só recebe chamadas server-to-server. Custo: um hop extra de rede por request — desprezível pra um painel interno, e o ganho de segurança compensa.
 
-### 4. Proteção client-side (vs middleware Next)
-O token está no localStorage, que o middleware do Next não acessa. Trade-off: flash de spinner antes do redirect. Aceitável pra painel interno.
+### 4. Proteção server-side via middleware Next (vs client-side)
+O cookie é legível no edge, então o `middleware.ts` decoda e decide o redirect **antes** de renderizar — sem flash de spinner. Decoda só pra UX (lê `exp`); a verificação de assinatura continua na API, a cada chamada proxiada, evitando acoplar o secret do JWT ao web no deploy split.
 
 ### 5. shadcn copiado vs lib instalada
 Componentes em `src/components/ui/`, customização versionada, sem upgrade surpresa quebrar layout.
@@ -203,17 +205,21 @@ A regra: **o alerta tem precedência sobre o booleano** quando descrevem o mesmo
 
 **Exceção: o medidor de frequência.** Ele **exibe o número e o mínimo** ("73% / 75% mínimo"), então a cor tem que concordar com o que está na tela — não pode ficar verde com 73 < 75 só porque o seed não trouxe o alerta `frequencia_baixa`. Aqui a cor segue a comparação visível (`value < min`).
 
+### 9. Tipos do front gerados do contrato OpenAPI
+Em vez de redeclarar os tipos de resposta no front (que silenciosamente divergiriam do back), o front os **deriva do contrato**. `npm run gen:api-types` boota a API, extrai o OpenAPI (`apps/api/openapi.json`) e roda `openapi-typescript`, gerando `apps/web/src/lib/api-schema.ts`; `lib/types.ts` indexa esse schema (`paths['/children/{id}']['get']...`) pra expor `Child`, `Summary`, etc. Os dois artefatos são commitados, e o **CI regenera e roda `git diff --exit-code`** — se alguém mexer no schema da API sem regenerar, o build quebra. Não virou pacote compartilhado de propósito: cada `Dockerfile` só copia o seu `apps/<x>`, então um workspace comum quebraria os builds do deploy split.
+
 ## Segurança
 
 - **Auth no servidor em todos os endpoints de dados** — só `POST /auth/token` e `GET /health` são públicos. A proteção não depende do front.
+- **JWT em cookie `HttpOnly` via BFF** — o token nunca chega ao JavaScript do browser; impossível roubar por XSS. As chamadas passam pelo proxy same-origin, que injeta o `Bearer` no servidor (ver Decisões §3).
 - **Rate limit** — global de 100 req/min e **5 req/min no `POST /auth/token`** (anti brute-force). Desligado em teste.
-- **Comparação de credenciais em tempo constante** — evita timing attack no login.
-- **Security headers** — CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` no front; `@fastify/helmet` na API.
+- **Comparação de credenciais em tempo constante** — `crypto.timingSafeEqual` sobre o SHA-256 das credenciais (comprimento fixo, sem vazar tamanho), evita timing attack no login.
+- **Security headers** — CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` no front; `@fastify/helmet` na API com CSP restritiva (só `/docs` afrouxa `script-src`/`style-src` pra `unsafe-inline`, o resto fica em `default-src 'self'`).
 - **`JWT_SECRET` nunca público** — gerado no entrypoint quando ausente; `loadEnv` recusa o placeholder em produção.
 - **`/docs` atrás de HTTP Basic Auth** — o contrato não fica exposto sem credencial.
 - **Validação com Zod no front e no back**; SQL parametrizado; `?next=` restrito a caminho interno.
 
-Trade-offs conscientes (§3 e §4): token em `localStorage` e sem revogação (expiração de 1h) — proporcional a um painel interno de usuário único.
+Trade-off consciente: sem revogação de token (expiração de 1h) — proporcional a um painel interno de usuário único.
 
 ## Deploy
 
@@ -223,19 +229,17 @@ Configs prontas pra split deploy:
 
 Passos:
 1. Render: novo Web Service a partir do `render.yaml` (provisiona o Postgres junto). Pega a URL pública.
-2. Vercel: Import Project apontando pra `apps/web`. Define `NEXT_PUBLIC_API_URL` = URL da Render.
+2. Vercel: Import Project apontando pra `apps/web`. Define `API_URL` = URL da Render (server-only; o BFF a consome, o browser nunca).
 3. Volta no Render e define `CORS_ORIGIN` = URL pública do Vercel. Redeploy.
 
 Não há deploy publicado nessa submissão; os configs estão prontos.
 
 ## O que faria diferente com mais tempo
 
-1. Token em cookie httpOnly + middleware Next.js — elimina o flash de spinner.
-2. Refresh token rotativo (hoje expira em 1h e força login).
-3. CI no GitHub Actions: lint + typecheck + tests em PRs.
-4. Tela dedicada de "Cobertura" listando casos sem dados, ordenada por nº de áreas faltantes.
-5. Audit log das revisões.
-6. Observabilidade: OpenTelemetry no back + Sentry no front.
+1. Refresh token rotativo (hoje expira em 1h e força login).
+2. Tela dedicada de "Cobertura" listando casos sem dados, ordenada por nº de áreas faltantes.
+3. Audit log das revisões.
+4. Observabilidade: OpenTelemetry no back + Sentry no front.
 
 ## Histórico de commits
 
