@@ -1,0 +1,1524 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Painel de Acompanhamento — API",
+    "description": "API do painel de crianças acompanhadas (saúde, educação, assistência social).",
+    "version": "1.0.0"
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {}
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/auth/token": {
+      "post": {
+        "summary": "Autentica o técnico e retorna um JWT",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "token_type": {
+                      "type": "string",
+                      "enum": [
+                        "Bearer"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "access_token",
+                    "token_type"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/children": {
+      "get": {
+        "summary": "Lista crianças com filtros, ordenação e paginação",
+        "tags": [
+          "children"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "nome",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "bairro",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "com",
+                "sem",
+                "saude",
+                "educacao",
+                "assistencia_social"
+              ]
+            },
+            "in": "query",
+            "name": "alertas",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "revisado",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "nome",
+                "bairro",
+                "idade",
+                "alertas",
+                "revisao"
+              ],
+              "default": "alertas"
+            },
+            "in": "query",
+            "name": "orderBy",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "minimum": 0,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "minimum": 0,
+              "maximum": 100,
+              "default": 10
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "nome": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "data_nascimento": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "bairro": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "responsavel": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "saude": {
+                            "type": "object",
+                            "properties": {
+                              "ultima_consulta": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                                "nullable": true
+                              },
+                              "vacinas_em_dia": {
+                                "type": "boolean"
+                              },
+                              "alertas": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "vacinas_atrasadas",
+                                    "consulta_atrasada"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "ultima_consulta",
+                              "vacinas_em_dia",
+                              "alertas"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "educacao": {
+                            "type": "object",
+                            "properties": {
+                              "escola": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "frequencia_percent": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100,
+                                "nullable": true
+                              },
+                              "alertas": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "frequencia_baixa",
+                                    "matricula_pendente"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "escola",
+                              "frequencia_percent",
+                              "alertas"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "assistencia_social": {
+                            "type": "object",
+                            "properties": {
+                              "cad_unico": {
+                                "type": "boolean"
+                              },
+                              "beneficio_ativo": {
+                                "type": "boolean"
+                              },
+                              "alertas": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "cadastro_ausente",
+                                    "cadastro_desatualizado",
+                                    "beneficio_suspenso"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "cad_unico",
+                              "beneficio_ativo",
+                              "alertas"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "revisado": {
+                            "type": "boolean"
+                          },
+                          "revisado_por": {
+                            "type": "string",
+                            "format": "email",
+                            "nullable": true
+                          },
+                          "revisado_em": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "nome",
+                          "data_nascimento",
+                          "bairro",
+                          "responsavel",
+                          "saude",
+                          "educacao",
+                          "assistencia_social",
+                          "revisado",
+                          "revisado_por",
+                          "revisado_em"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "minimum": 0
+                        },
+                        "pageSize": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "minimum": 0
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalPages": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "pageSize",
+                        "total",
+                        "totalPages"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "pagination"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/children/neighborhoods": {
+      "get": {
+        "summary": "Lista os bairros distintos",
+        "tags": [
+          "children"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "bairros": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "bairros"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/children/{id}": {
+      "get": {
+        "summary": "Detalhe completo de uma criança",
+        "tags": [
+          "children"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "nome": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "data_nascimento": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "bairro": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "responsavel": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "saude": {
+                      "type": "object",
+                      "properties": {
+                        "ultima_consulta": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                          "nullable": true
+                        },
+                        "vacinas_em_dia": {
+                          "type": "boolean"
+                        },
+                        "alertas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "vacinas_atrasadas",
+                              "consulta_atrasada"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "ultima_consulta",
+                        "vacinas_em_dia",
+                        "alertas"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "educacao": {
+                      "type": "object",
+                      "properties": {
+                        "escola": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "frequencia_percent": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "nullable": true
+                        },
+                        "alertas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "frequencia_baixa",
+                              "matricula_pendente"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "escola",
+                        "frequencia_percent",
+                        "alertas"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "assistencia_social": {
+                      "type": "object",
+                      "properties": {
+                        "cad_unico": {
+                          "type": "boolean"
+                        },
+                        "beneficio_ativo": {
+                          "type": "boolean"
+                        },
+                        "alertas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "cadastro_ausente",
+                              "cadastro_desatualizado",
+                              "beneficio_suspenso"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "cad_unico",
+                        "beneficio_ativo",
+                        "alertas"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "revisado": {
+                      "type": "boolean"
+                    },
+                    "revisado_por": {
+                      "type": "string",
+                      "format": "email",
+                      "nullable": true
+                    },
+                    "revisado_em": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "nome",
+                    "data_nascimento",
+                    "bairro",
+                    "responsavel",
+                    "saude",
+                    "educacao",
+                    "assistencia_social",
+                    "revisado",
+                    "revisado_por",
+                    "revisado_em"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/children/{id}/review": {
+      "patch": {
+        "summary": "Registra que o técnico autenticado revisou o caso",
+        "tags": [
+          "children"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "nome": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "data_nascimento": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "bairro": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "responsavel": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "saude": {
+                      "type": "object",
+                      "properties": {
+                        "ultima_consulta": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                          "nullable": true
+                        },
+                        "vacinas_em_dia": {
+                          "type": "boolean"
+                        },
+                        "alertas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "vacinas_atrasadas",
+                              "consulta_atrasada"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "ultima_consulta",
+                        "vacinas_em_dia",
+                        "alertas"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "educacao": {
+                      "type": "object",
+                      "properties": {
+                        "escola": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "frequencia_percent": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "nullable": true
+                        },
+                        "alertas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "frequencia_baixa",
+                              "matricula_pendente"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "escola",
+                        "frequencia_percent",
+                        "alertas"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "assistencia_social": {
+                      "type": "object",
+                      "properties": {
+                        "cad_unico": {
+                          "type": "boolean"
+                        },
+                        "beneficio_ativo": {
+                          "type": "boolean"
+                        },
+                        "alertas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "cadastro_ausente",
+                              "cadastro_desatualizado",
+                              "beneficio_suspenso"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "cad_unico",
+                        "beneficio_ativo",
+                        "alertas"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "revisado": {
+                      "type": "boolean"
+                    },
+                    "revisado_por": {
+                      "type": "string",
+                      "format": "email",
+                      "nullable": true
+                    },
+                    "revisado_em": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "nome",
+                    "data_nascimento",
+                    "bairro",
+                    "responsavel",
+                    "saude",
+                    "educacao",
+                    "assistencia_social",
+                    "revisado",
+                    "revisado_por",
+                    "revisado_em"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Desfaz a revisão de um caso",
+        "tags": [
+          "children"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "nome": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "data_nascimento": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "bairro": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "responsavel": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "saude": {
+                      "type": "object",
+                      "properties": {
+                        "ultima_consulta": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                          "nullable": true
+                        },
+                        "vacinas_em_dia": {
+                          "type": "boolean"
+                        },
+                        "alertas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "vacinas_atrasadas",
+                              "consulta_atrasada"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "ultima_consulta",
+                        "vacinas_em_dia",
+                        "alertas"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "educacao": {
+                      "type": "object",
+                      "properties": {
+                        "escola": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "frequencia_percent": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "nullable": true
+                        },
+                        "alertas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "frequencia_baixa",
+                              "matricula_pendente"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "escola",
+                        "frequencia_percent",
+                        "alertas"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "assistencia_social": {
+                      "type": "object",
+                      "properties": {
+                        "cad_unico": {
+                          "type": "boolean"
+                        },
+                        "beneficio_ativo": {
+                          "type": "boolean"
+                        },
+                        "alertas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "cadastro_ausente",
+                              "cadastro_desatualizado",
+                              "beneficio_suspenso"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "cad_unico",
+                        "beneficio_ativo",
+                        "alertas"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "revisado": {
+                      "type": "boolean"
+                    },
+                    "revisado_por": {
+                      "type": "string",
+                      "format": "email",
+                      "nullable": true
+                    },
+                    "revisado_em": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "nome",
+                    "data_nascimento",
+                    "bairro",
+                    "responsavel",
+                    "saude",
+                    "educacao",
+                    "assistencia_social",
+                    "revisado",
+                    "revisado_por",
+                    "revisado_em"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/summary": {
+      "get": {
+        "summary": "Indicadores agregados do painel",
+        "tags": [
+          "summary"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_criancas": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "com_alertas": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sem_alertas": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sem_dados": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "revisadas": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "pendentes_revisao": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "alertas_por_area": {
+                      "type": "object",
+                      "properties": {
+                        "saude": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "educacao": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "assistencia_social": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "saude",
+                        "educacao",
+                        "assistencia_social"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "por_bairro": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "bairro": {
+                            "type": "string"
+                          },
+                          "total": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "com_alertas": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "sem_dados": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "bairro",
+                          "total",
+                          "com_alertas",
+                          "sem_dados"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "cobertura": {
+                      "type": "object",
+                      "properties": {
+                        "com_saude": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "com_educacao": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "com_assistencia_social": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "sem_nenhuma_area": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "com_saude",
+                        "com_educacao",
+                        "com_assistencia_social",
+                        "sem_nenhuma_area"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "total_criancas",
+                    "com_alertas",
+                    "sem_alertas",
+                    "sem_dados",
+                    "revisadas",
+                    "pendentes_revisao",
+                    "alertas_por_area",
+                    "por_bairro",
+                    "cobertura"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "statusCode",
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

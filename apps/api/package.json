@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint . --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "gen:openapi": "tsx scripts/gen-openapi.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
