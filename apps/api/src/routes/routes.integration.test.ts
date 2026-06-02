@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../app.js';
-import { ChildrenRepository } from '../repositories/children.repository.js';
+import { FakeChildrenStore } from '../test/fake-children-store.js';
 import { fixtureChildren } from '../test/fixtures.js';
 import type { FastifyInstance } from 'fastify';
 import type { Env } from '../config/env.js';
@@ -15,18 +15,74 @@ const testEnv: Env = {
   TECHNICIAN_PASSWORD: 'x',
   CORS_ORIGIN: 'http://localhost:3000',
   SEED_FILE: '',
+  DATABASE_URL: 'postgres://user:pass@localhost:5432/painel',
 };
 
 describe('HTTP routes', () => {
   let app: FastifyInstance;
+  let authHeaders: { authorization: string };
 
   beforeAll(async () => {
-    const repo = new ChildrenRepository(fixtureChildren);
+    const repo = new FakeChildrenStore(fixtureChildren);
     app = await buildApp({ env: testEnv, childrenRepo: repo });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/token',
+      payload: { email: testEnv.TECHNICIAN_EMAIL, password: testEnv.TECHNICIAN_PASSWORD },
+    });
+    authHeaders = { authorization: `Bearer ${res.json().access_token}` };
   });
 
   afterAll(async () => {
     await app.close();
+  });
+
+  describe('GET /docs (Swagger UI)', () => {
+    it('returns 401 without Basic Auth', async () => {
+      const res = await app.inject({ method: 'GET', url: '/docs/' });
+      expect(res.statusCode).toBe(401);
+      expect(res.headers['www-authenticate']).toContain('Basic');
+    });
+
+    it('serves the docs with valid Basic Auth', async () => {
+      const creds = Buffer.from(
+        `${testEnv.TECHNICIAN_EMAIL}:${testEnv.TECHNICIAN_PASSWORD}`,
+      ).toString('base64');
+      const res = await app.inject({
+        method: 'GET',
+        url: '/docs/',
+        headers: { authorization: `Basic ${creds}` },
+      });
+      expect(res.statusCode).toBe(200);
+    });
+
+    it('documents request and response schemas in the OpenAPI spec', async () => {
+      const creds = Buffer.from(
+        `${testEnv.TECHNICIAN_EMAIL}:${testEnv.TECHNICIAN_PASSWORD}`,
+      ).toString('base64');
+      const res = await app.inject({
+        method: 'GET',
+        url: '/docs/json',
+        headers: { authorization: `Basic ${creds}` },
+      });
+      expect(res.statusCode).toBe(200);
+      const spec = res.json();
+
+      // todos os endpoints do enunciado documentados
+      expect(Object.keys(spec.paths).sort()).toEqual(
+        expect.arrayContaining(['/auth/token', '/children', '/children/{id}', '/summary']),
+      );
+
+      // schema de resposta 200 presente (não só os parâmetros de entrada)
+      const listOk = spec.paths['/children'].get.responses['200'];
+      expect(listOk.content['application/json'].schema.properties).toHaveProperty('pagination');
+
+      const summaryOk = spec.paths['/summary'].get.responses['200'];
+      expect(summaryOk.content['application/json'].schema.properties).toHaveProperty('total_criancas');
+
+      // erro padronizado documentado
+      expect(spec.paths['/children'].get.responses).toHaveProperty('401');
+    });
   });
 
   describe('POST /auth/token', () => {
@@ -51,13 +107,17 @@ describe('HTTP routes', () => {
       expect(res.statusCode).toBe(401);
     });
 
-    it('rejects malformed payload with 400', async () => {
+    it('rejects malformed payload with 400 and the standardized error shape', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/auth/token',
         payload: { email: 'not-an-email' },
       });
       expect(res.statusCode).toBe(400);
+      const body = res.json();
+      expect(body).toMatchObject({ statusCode: 400, error: 'Bad Request' });
+      expect(body.details).toHaveProperty('email');
+      expect(body.details).toHaveProperty('password');
     });
 
     it('issues a token with preferred_username matching the email', async () => {
@@ -74,8 +134,17 @@ describe('HTTP routes', () => {
   });
 
   describe('GET /children', () => {
+    it('returns 401 without token', async () => {
+      const res = await app.inject({ method: 'GET', url: '/children' });
+      expect(res.statusCode).toBe(401);
+    });
+
     it('returns paginated list', async () => {
-      const res = await app.inject({ method: 'GET', url: '/children?pageSize=2&page=1' });
+      const res = await app.inject({
+        method: 'GET',
+        url: '/children?pageSize=2&page=1',
+        headers: authHeaders,
+      });
       expect(res.statusCode).toBe(200);
       const body = res.json();
       expect(body.items).toHaveLength(2);
@@ -83,33 +152,51 @@ describe('HTTP routes', () => {
     });
 
     it('filters by alerts area', async () => {
-      const res = await app.inject({ method: 'GET', url: '/children?alertas=saude' });
+      const res = await app.inject({
+        method: 'GET',
+        url: '/children?alertas=saude',
+        headers: authHeaders,
+      });
       const body = res.json();
       expect(body.items.map((c: { id: string }) => c.id)).toEqual(['c002']);
     });
 
     it('returns 400 for invalid query', async () => {
-      const res = await app.inject({ method: 'GET', url: '/children?alertas=invalida' });
+      const res = await app.inject({
+        method: 'GET',
+        url: '/children?alertas=invalida',
+        headers: authHeaders,
+      });
       expect(res.statusCode).toBe(400);
     });
   });
 
   describe('GET /children/:id', () => {
-    it('returns the child', async () => {
+    it('returns 401 without token', async () => {
       const res = await app.inject({ method: 'GET', url: '/children/c001' });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('returns the child', async () => {
+      const res = await app.inject({ method: 'GET', url: '/children/c001', headers: authHeaders });
       expect(res.statusCode).toBe(200);
       expect(res.json().nome).toBe('Ana Clara Mendes');
     });
 
     it('returns 404 for unknown id', async () => {
-      const res = await app.inject({ method: 'GET', url: '/children/nope' });
+      const res = await app.inject({ method: 'GET', url: '/children/nope', headers: authHeaders });
       expect(res.statusCode).toBe(404);
     });
   });
 
   describe('GET /summary', () => {
-    it('returns aggregated counts', async () => {
+    it('returns 401 without token', async () => {
       const res = await app.inject({ method: 'GET', url: '/summary' });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('returns aggregated counts', async () => {
+      const res = await app.inject({ method: 'GET', url: '/summary', headers: authHeaders });
       expect(res.statusCode).toBe(200);
       const body = res.json();
       expect(body.total_criancas).toBe(5);
@@ -153,6 +240,51 @@ describe('HTTP routes', () => {
     it('returns 404 for unknown id', async () => {
       const res = await app.inject({
         method: 'PATCH',
+        url: '/children/nope/review',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe('DELETE /children/:id/review', () => {
+    let token: string;
+    beforeAll(async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/auth/token',
+        payload: { email: testEnv.TECHNICIAN_EMAIL, password: testEnv.TECHNICIAN_PASSWORD },
+      });
+      token = res.json().access_token;
+    });
+
+    it('returns 401 without token', async () => {
+      const res = await app.inject({ method: 'DELETE', url: '/children/c001/review' });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('reverts a review (revisado back to false, fields cleared)', async () => {
+      await app.inject({
+        method: 'PATCH',
+        url: '/children/c004/review',
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/children/c004/review',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.revisado).toBe(false);
+      expect(body.revisado_por).toBeNull();
+      expect(body.revisado_em).toBeNull();
+    });
+
+    it('returns 404 for unknown id', async () => {
+      const res = await app.inject({
+        method: 'DELETE',
         url: '/children/nope/review',
         headers: { authorization: `Bearer ${token}` },
       });

@@ -1,75 +1,116 @@
-import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { ChildrenService, listChildrenQuerySchema } from '../services/children.service.js';
+import { childSchema, type Child } from '../domain/child.js';
+import { errorResponseSchema } from '../domain/http.js';
+import {
+  listChildrenQuerySchema,
+  listChildrenResultSchema,
+  type ChildrenService,
+  type ListChildrenQuery,
+} from '../services/children.service.js';
 
 const childIdParamSchema = z.object({ id: z.string().min(1) });
+type ChildIdParam = z.infer<typeof childIdParamSchema>;
+
+const neighborhoodsResponseSchema = z.object({ bairros: z.array(z.string()) });
+
+const protectedRoute = (extra: Record<string, unknown> = {}) => ({
+  security: [{ bearerAuth: [] }],
+  tags: ['children'],
+  ...extra,
+});
 
 export interface ChildrenRoutesOptions {
   childrenService: ChildrenService;
 }
 
+function notFound(reply: FastifyReply, id: string): FastifyReply {
+  return reply.code(404).send({
+    statusCode: 404,
+    error: 'Not Found',
+    message: `Criança ${id} não encontrada`,
+  });
+}
+
 export function createChildrenRoutes({ childrenService }: ChildrenRoutesOptions): FastifyPluginAsync {
   const plugin: FastifyPluginAsync = async (app: FastifyInstance) => {
-    app.get('/children', async (request, reply) => {
-      const parsed = listChildrenQuerySchema.safeParse(request.query);
-      if (!parsed.success) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Parâmetros de consulta inválidos',
-          details: parsed.error.flatten().fieldErrors,
-        });
-      }
-      return childrenService.list(parsed.data);
-    });
+    app.get<{ Querystring: ListChildrenQuery }>(
+      '/children',
+      {
+        preHandler: [app.authenticate],
+        schema: protectedRoute({
+          summary: 'Lista crianças com filtros, ordenação e paginação',
+          querystring: listChildrenQuerySchema,
+          response: { 200: listChildrenResultSchema, 400: errorResponseSchema, 401: errorResponseSchema },
+        }),
+      },
+      (request) => childrenService.list(request.query),
+    );
 
-    app.get('/children/neighborhoods', async () => ({
-      bairros: childrenService.listNeighborhoods(),
-    }));
+    app.get(
+      '/children/neighborhoods',
+      {
+        preHandler: [app.authenticate],
+        schema: protectedRoute({
+          summary: 'Lista os bairros distintos',
+          response: { 200: neighborhoodsResponseSchema, 401: errorResponseSchema },
+        }),
+      },
+      async () => ({ bairros: await childrenService.listNeighborhoods() }),
+    );
 
-    app.get('/children/:id', async (request, reply) => {
-      const parsed = childIdParamSchema.safeParse(request.params);
-      if (!parsed.success) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'ID inválido',
-        });
-      }
-      const child = childrenService.findById(parsed.data.id);
-      if (!child) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: `Criança ${parsed.data.id} não encontrada`,
-        });
-      }
-      return child;
-    });
-
-    app.patch(
-      '/children/:id/review',
-      { preHandler: [app.authenticate] },
+    app.get<{ Params: ChildIdParam }>(
+      '/children/:id',
+      {
+        preHandler: [app.authenticate],
+        schema: protectedRoute({
+          summary: 'Detalhe completo de uma criança',
+          params: childIdParamSchema,
+          response: { 200: childSchema, 401: errorResponseSchema, 404: errorResponseSchema },
+        }),
+      },
       async (request, reply) => {
-        const parsed = childIdParamSchema.safeParse(request.params);
-        if (!parsed.success) {
-          return reply.code(400).send({
-            statusCode: 400,
-            error: 'Bad Request',
-            message: 'ID inválido',
-          });
-        }
-        const updated = childrenService.markReviewed(
-          parsed.data.id,
-          request.user.preferred_username,
+        const child = await childrenService.findById(request.params.id);
+        return child ?? notFound(reply, request.params.id);
+      },
+    );
+
+    app.patch<{ Params: ChildIdParam }>(
+      '/children/:id/review',
+      {
+        preHandler: [app.authenticate],
+        schema: protectedRoute({
+          summary: 'Registra que o técnico autenticado revisou o caso',
+          params: childIdParamSchema,
+          response: { 200: childSchema, 401: errorResponseSchema, 404: errorResponseSchema },
+        }),
+      },
+      async (request, reply) => {
+        const reviewer = request.user.preferred_username;
+        const updated: Child | null = await childrenService.markReviewed(request.params.id, reviewer);
+        if (!updated) return notFound(reply, request.params.id);
+        request.log.info({ childId: updated.id, reviewer }, 'caso revisado');
+        return updated;
+      },
+    );
+
+    app.delete<{ Params: ChildIdParam }>(
+      '/children/:id/review',
+      {
+        preHandler: [app.authenticate],
+        schema: protectedRoute({
+          summary: 'Desfaz a revisão de um caso',
+          params: childIdParamSchema,
+          response: { 200: childSchema, 401: errorResponseSchema, 404: errorResponseSchema },
+        }),
+      },
+      async (request, reply) => {
+        const updated: Child | null = await childrenService.unmarkReviewed(request.params.id);
+        if (!updated) return notFound(reply, request.params.id);
+        request.log.info(
+          { childId: updated.id, reviewer: request.user.preferred_username },
+          'revisão desfeita',
         );
-        if (!updated) {
-          return reply.code(404).send({
-            statusCode: 404,
-            error: 'Not Found',
-            message: `Criança ${parsed.data.id} não encontrada`,
-          });
-        }
         return updated;
       },
     );
