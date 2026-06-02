@@ -1,6 +1,5 @@
 'use client';
 
-import axios from 'axios';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -21,12 +20,11 @@ import { EducationCard } from '@/components/children/education-card';
 import { HealthCard } from '@/components/children/health-card';
 import { SocialCard } from '@/components/children/social-card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useChild, useReviewChild, useUnreviewChild } from '@/hooks/use-children';
-import { alertsByArea, getPriority, totalAlerts } from '@/lib/child-status';
+import { alertsByArea, type Priority } from '@/lib/child-status';
 import { ageInYears, formatDateBR, formatDateTimeBR } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ChildDetailError, ChildDetailSkeleton } from './child-detail-states';
 
 export function ChildDetailView({ id }: { id: string }) {
   const { data: child, isLoading, isError, error, refetch } = useChild(id);
@@ -36,47 +34,12 @@ export function ChildDetailView({ id }: { id: string }) {
   // data/hora de geração da ficha (usada só no cabeçalho de impressão)
   const [generatedAt] = useState(() => new Date().toISOString());
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-6 w-48" />
-        <Skeleton className="h-32 w-full" />
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-        </div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-    return (
-      <Card>
-        <CardContent className="space-y-3 p-6 text-center">
-          <p className="text-sm text-destructive">
-            {status === 404
-              ? 'Criança não encontrada.'
-              : 'Não foi possível carregar os dados desta criança.'}
-          </p>
-          <div className="flex justify-center gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/children">Voltar à lista</Link>
-            </Button>
-            {status !== 404 && (
-              <Button onClick={() => refetch()}>Tentar novamente</Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
+  if (isLoading) return <ChildDetailSkeleton />;
+  if (isError) return <ChildDetailError error={error} onRetry={() => void refetch()} />;
   if (!child) return null;
 
-  const level = getPriority(child);
-  const alertCount = totalAlerts(child);
+  const level = child.prioridade;
+  const alertCount = child.total_alertas;
   const areasWithAlerts = alertsByArea(child).length;
 
   const handleCopyLink = async () => {
@@ -254,7 +217,7 @@ function PriorityBanner({
   alertCount,
   areasWithAlerts,
 }: {
-  level: 'critico' | 'atencao' | 'sem_dados';
+  level: Extract<Priority, 'critico' | 'atencao' | 'sem_dados'>;
   alertCount: number;
   areasWithAlerts: number;
 }) {

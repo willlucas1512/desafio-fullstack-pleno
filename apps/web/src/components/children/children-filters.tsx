@@ -1,7 +1,6 @@
 'use client';
 
 import { ArrowUpDown, Search, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -12,31 +11,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useNeighborhoods } from '@/hooks/use-children';
-import { AREA_LABEL } from '@/lib/format';
 import type { AlertFilter, ChildrenListParams, OrderBy } from '@/lib/types';
+import { ActiveFilterChips } from './active-filter-chips';
+import { ALERT_OPTIONS, ANY, ORDER_OPTIONS } from './children-filter-options';
 
 interface Props {
   value: ChildrenListParams;
   onChange: (next: ChildrenListParams) => void;
 }
-
-const ANY = '__all__';
-
-const ALERT_OPTIONS: { value: AlertFilter; label: string }[] = [
-  { value: 'com', label: 'Com algum alerta' },
-  { value: 'sem', label: 'Sem alertas' },
-  { value: 'saude', label: `Alerta em ${AREA_LABEL.saude.toLowerCase()}` },
-  { value: 'educacao', label: `Alerta em ${AREA_LABEL.educacao.toLowerCase()}` },
-  { value: 'assistencia_social', label: `Alerta em ${AREA_LABEL.assistencia_social.toLowerCase()}` },
-];
-
-const ORDER_OPTIONS: { value: OrderBy; label: string }[] = [
-  { value: 'alertas', label: 'Mais alertas' },
-  { value: 'nome', label: 'Nome (A-Z)' },
-  { value: 'bairro', label: 'Bairro' },
-  { value: 'idade', label: 'Mais novo' },
-  { value: 'revisao', label: 'Pendentes primeiro' },
-];
 
 export function ChildrenFilters({ value, onChange }: Props) {
   const { data: neighborhoods = [] } = useNeighborhoods();
@@ -152,68 +134,6 @@ export function ChildrenFilters({ value, onChange }: Props) {
       </div>
 
       <ActiveFilterChips value={value} onChange={onChange} />
-    </div>
-  );
-}
-
-function ActiveFilterChips({ value, onChange }: Props) {
-  const chips: { label: string; clear: () => void }[] = [];
-  if (value.nome) {
-    chips.push({
-      label: `Nome: "${value.nome}"`,
-      clear: () => onChange({ ...value, nome: undefined, page: 1 }),
-    });
-  }
-  if (value.bairro) {
-    chips.push({
-      label: `Bairro: ${value.bairro}`,
-      clear: () => onChange({ ...value, bairro: undefined, page: 1 }),
-    });
-  }
-  if (value.alertas) {
-    const found = ALERT_OPTIONS.find((o) => o.value === value.alertas);
-    chips.push({
-      label: found?.label ?? value.alertas,
-      clear: () => onChange({ ...value, alertas: undefined, page: 1 }),
-    });
-  }
-  if (value.revisado !== undefined) {
-    chips.push({
-      label: value.revisado ? 'Já revisados' : 'Não revisados',
-      clear: () => onChange({ ...value, revisado: undefined, page: 1 }),
-    });
-  }
-
-  if (chips.length === 0) return null;
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-xs text-muted-foreground">Filtros ativos:</span>
-      {chips.map((chip) => (
-        <button
-          key={chip.label}
-          type="button"
-          onClick={chip.clear}
-          className="inline-flex items-center gap-1 rounded-full border bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/70 focus-ring"
-        >
-          {chip.label}
-          <X className="h-3 w-3" aria-hidden="true" />
-        </button>
-      ))}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="ml-1 h-7 px-2 text-xs"
-        onClick={() =>
-          onChange({
-            page: 1,
-            pageSize: value.pageSize,
-            orderBy: value.orderBy,
-          })
-        }
-      >
-        Limpar tudo
-      </Button>
     </div>
   );
 }
