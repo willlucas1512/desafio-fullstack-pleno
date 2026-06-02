@@ -4,6 +4,39 @@ Painel pra técnicos da Prefeitura acompanharem crianças em situação de vulne
 
 > Submissão do desafio fullstack pleno.
 
+## TL;DR
+
+- **Demo no ar:** [painel-social-pcrj.vercel.app](https://painel-social-pcrj.vercel.app/) — loga com `tecnico@prefeitura.rio` / `painel@2024`. ([telas abaixo](#telas))
+- **Subir local:** `docker compose up` → [localhost:3000](http://localhost:3000), mesmas credenciais.
+- **Arquitetura:** monorepo API Fastify + web Next.js; auth via JWT em cookie `HttpOnly` atrás de um BFF (o token nunca toca o JS do browser).
+- **Dado:** Postgres como fonte única (cada criança é um documento `JSONB`); filtro/ordenação/agregação rodam numa **única** definição de domínio em TypeScript, compartilhada entre testes e produção.
+- **Diferencial:** trade-offs e decisões explicitados ([§Decisões](#decisões)), full test pyramid (Vitest + RTL + Playwright), acessibilidade WCAG AA, dark mode, configs de deploy split (Vercel + Render).
+
+## Índice
+
+- [Telas](#telas) · [Quickstart](#quickstart) · [Stack](#stack) · [Rodando sem Docker](#rodando-local-sem-docker)
+- [API](#api) · [Frontend](#frontend) · [Casos-limite do seed](#casos-limite-do-seed) · [Testes](#testes)
+- [Decisões](#decisões) · [Segurança](#segurança) · [Deploy](#deploy) · [O que faria diferente](#o-que-faria-diferente-com-mais-tempo)
+
+## Telas
+
+> Ao vivo em [painel-social-pcrj.vercel.app](https://painel-social-pcrj.vercel.app/).
+
+| Login | Dashboard |
+|---|---|
+| ![Tela de login](docs/screenshot-login.webp) | ![Dashboard com KPIs, alertas por área e cobertura](docs/screenshot-dashboard.webp) |
+| Split institucional PCRJ + form acessível (VLibras, foco visível). | KPIs, alertas por área e cobertura — `sem_dados` destacado à parte de `sem_alertas`. |
+
+| Distribuição por bairro | Lista de crianças |
+|---|---|
+| ![Heatmap de bairros com lacunas de cobertura](docs/screenshot-dashboard-mapa.webp) | ![Lista com busca, filtros e ordenação](docs/screenshot-lista.webp) |
+| Heatmap por intensidade de alertas; listras marcam lacuna de cobertura; clique filtra a lista. | Busca, filtros URL-driven, ordenação e badges de alerta por área. |
+
+| Detalhe da criança (caso crítico c025) |
+|---|
+| ![Detalhe de Valentina Cruz Nogueira com alertas nas 3 áreas](docs/screenshot-detalhe.webp) |
+| Os 3 cards por área. Mostra a precedência alerta > dado bruto (CadÚnico "Desatualizado") e a exceção do medidor de frequência (48% < 75% pinta vermelho) — ver [Decisões §8](#8-dados-divergentes-um-status-por-atributo-alerta--dado-bruto). |
+
 ## Quickstart
 
 ```bash
@@ -128,6 +161,19 @@ Retorna a criança atualizada (`revisado: true`, `revisado_por` = email do JWT, 
 ```
 
 ### Auth: BFF com cookie httpOnly
+
+```
+                  cookie HttpOnly (token)
+        ┌──────────────────────────────────────┐
+        │                                       ▼
+┌───────────────┐   same-origin   ┌──────────────────────┐   server-to-server   ┌─────────────┐
+│    Browser    │ ──────────────► │  Next (BFF)           │ ───────────────────► │  API        │
+│  (sem token)  │  /api/auth/*    │  Route Handlers       │  injeta Bearer       │  Fastify    │
+│               │  /api/proxy/*   │  + proxy [...path]     │  (lê cookie)         │  verifica   │
+└───────────────┘ ◄────────────── │  + middleware (edge)  │ ◄─────────────────── │  assinatura │
+                    HTML/JSON      └──────────────────────┘     JSON / 401        └─────────────┘
+```
+
 O token **nunca** chega ao JavaScript do browser. O login posta em `POST /api/auth/login` (Route Handler do Next), que repassa as credenciais à API, recebe o JWT e o grava num cookie `HttpOnly; SameSite=Lax; Secure` (em prod). As chamadas de dados passam pelo proxy same-origin `/api/proxy/[...path]`, que lê o cookie no servidor e injeta o `Authorization: Bearer` antes de falar com a API — o browser só vê requisições same-origin, sem token exposto a XSS.
 
 Proteção de rotas em duas camadas. A real continua no **servidor**: a API exige `Bearer` em todo endpoint de dados (`preHandler: app.authenticate`), então nenhum dado sai sem token. No front, o `middleware.ts` (edge) roda antes de renderizar: decoda o cookie (sem verificar assinatura — quem verifica é a API), checa `exp` e, em rota protegida sem sessão válida, redireciona pra `/login?next=<path>` antes de qualquer flash de tela. O `?next=` só aceita caminho interno (bloqueia open redirect); logado, `/login` redireciona pro dashboard.
@@ -223,25 +269,34 @@ Em vez de redeclarar os tipos de resposta no front (que silenciosamente divergir
 
 Trade-off consciente: sem revogação de token (expiração de 1h) — proporcional a um painel interno de usuário único.
 
+### CSP enfraquecida pelo VLibras (trade-off conhecido)
+
+O widget de acessibilidade VLibras (player Unity) injeta scripts inline e cria Web Workers a partir de URLs `blob:`, o que **obriga** o `script-src` do front a incluir `'unsafe-inline'` e `'unsafe-eval'` (ver `apps/web/next.config.mjs`). Isso enfraquece a CSP como camada de defesa contra XSS — embora o risco fique mitigado por React escapar a saída por padrão, pela ausência de `dangerouslySetInnerHTML` com dados de usuário e, principalmente, pelo JWT viver num cookie `HttpOnly` fora do alcance do JavaScript (um XSS não conseguiria roubar a sessão).
+
+**Com mais tempo, isolaria o VLibras num `<iframe>` sandboxed de origem própria**, servindo o widget num documento separado com sua própria CSP permissiva. Assim o resto da aplicação voltaria a uma CSP estrita (sem `'unsafe-inline'`/`'unsafe-eval'` no `script-src`), confinando o relaxamento ao iframe do widget. As demais correções da auditoria (HSTS explícito no `next.config.mjs`, rate limit compartilhado via Redis ao escalar réplicas) seriam aplicadas no mesmo esforço — foram conscientemente adiadas por estarem fora do escopo essencial do desafio.
+
 ## Deploy
 
-Configs prontas pra split deploy:
+**No ar:** web em [painel-social-pcrj.vercel.app](https://painel-social-pcrj.vercel.app/) (Vercel) consumindo a API no Render via BFF.
+
+Split deploy:
 - **Vercel** (web): `apps/web/vercel.json`, região `gru1`
 - **Render** (api): `render.yaml`, healthcheck em `/health`
 
-Passos:
+Passos pra reproduzir:
 1. Render: novo Web Service a partir do `render.yaml` (provisiona o Postgres junto). Pega a URL pública.
 2. Vercel: Import Project apontando pra `apps/web`. Define `API_URL` = URL da Render (server-only; o BFF a consome, o browser nunca).
 3. Volta no Render e define `CORS_ORIGIN` = URL pública do Vercel. Redeploy.
 
-Não há deploy publicado nessa submissão; os configs estão prontos.
-
 ## O que faria diferente com mais tempo
 
 1. Refresh token rotativo (hoje expira em 1h e força login).
-2. Tela dedicada de "Cobertura" listando casos sem dados, ordenada por nº de áreas faltantes.
-3. Audit log das revisões.
-4. Observabilidade: OpenTelemetry no back + Sentry no front.
+2. Isolar o VLibras num `<iframe>` sandboxed pra restaurar uma CSP estrita no resto do app (remover `'unsafe-inline'`/`'unsafe-eval'` do `script-src` — ver Segurança).
+3. HSTS explícito no `next.config.mjs` e rate limit compartilhado (Redis) pra escalar réplicas.
+4. **Otimizar a entrega pra aparelhos fracos** (a persona é técnico em campo, muitas vezes em dispositivo simples e rede instável, acessando várias vezes ao dia). Hoje o dashboard carrega Recharts e o mapa SVG (com o GeoJSON inline) estaticamente no bundle do cliente, e as telas são 100% client components. Com mais tempo: `next/dynamic` no gráfico e no mapa (com fallback de skeleton) pra tirá-los do bundle inicial, mover o path do GeoJSON pra um asset/módulo separado, e usar RSC pra renderizar a primeira carga da lista/dashboard no servidor (melhor TTFB e first-paint, em vez de skeleton → fetch no browser). Mediria com bundle analyzer + Lighthouse mobile (CPU/rede throttled) pra guiar os cortes.
+5. Tela dedicada de "Cobertura" listando casos sem dados, ordenada por nº de áreas faltantes.
+6. Audit log das revisões.
+7. Observabilidade: OpenTelemetry no back + Sentry no front.
 
 ## Histórico de commits
 
